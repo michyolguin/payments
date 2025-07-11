@@ -92,30 +92,30 @@
     <div id="statusResult"></div>
   </div>
 
-  <script>
-    function showForm() {
-      document.getElementById('form').classList.remove('hidden');
-      document.getElementById('status').classList.add('hidden');
-    }
+ <script>
+  function showForm() {
+    document.getElementById('form').classList.remove('hidden');
+    document.getElementById('status').classList.add('hidden');
+  }
 
-    function showStatus() {
-      document.getElementById('status').classList.remove('hidden');
-      document.getElementById('form').classList.add('hidden');
-    }
+  function showStatus() {
+    document.getElementById('status').classList.remove('hidden');
+    document.getElementById('form').classList.add('hidden');
+  }
 
-    function addReceipt() {
+  function addReceipt() {
     const container = document.createElement('div');
     container.classList.add('receipt-entry');
     container.innerHTML = `
       <label>Upload Receipt (PDF or PNG)</label>
       <input type="file" accept=".pdf,.png,.jpg" required>
-  
+
       <label>Currency</label>
       <input type="text" placeholder="e.g., CHF" required>
-  
+
       <label>Amount</label>
       <input type="number" step="0.01" required>
-  
+
       <label>Expense Type</label>
       <select required>
         <option value="">Select a type</option>
@@ -129,21 +129,20 @@
     `;
     document.getElementById('receipts').appendChild(container);
   }
-    }
 
-    document.getElementById('reimbursementForm').addEventListener('submit', function(event) {
-      event.preventDefault();
-      const ref = 'REF' + Math.floor(Math.random() * 1000000);
-      document.getElementById('referenceNumber').innerText = 'Request submitted. Your reference number is: ' + ref;
-      document.getElementById('referenceNumber').classList.remove('hidden');
-      document.getElementById('reimbursementForm').reset();
-      document.getElementById('receipts').innerHTML = '';
-    });
+  document.getElementById('reimbursementForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+    const ref = 'REF' + Math.floor(Math.random() * 1000000);
+    document.getElementById('referenceNumber').innerText = 'Request submitted. Your reference number is: ' + ref;
+    document.getElementById('referenceNumber').classList.remove('hidden');
+    document.getElementById('reimbursementForm').reset();
+    document.getElementById('receipts').innerHTML = '';
+  });
 
-    function checkStatus() {
-      const ref = document.getElementById('statusRef').value;
-      document.getElementById('statusResult').innerText = `Status for ${ref}: Pending Review.`;
-    }
-  </script>
+  function checkStatus() {
+    const ref = document.getElementById('statusRef').value;
+    document.getElementById('statusResult').innerText = `Status for ${ref}: Pending Review.`;
+  }
+</script>
 </body>
 </html>
