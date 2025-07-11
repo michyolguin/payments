@@ -30,56 +30,51 @@
         <input type="text" id="fullName" required>
 
         <!-- PAYMENT METHOD -->
-        <label for="paymentMethod">Account Number Type</label>
-        <select id="paymentMethod" onchange="toggleBankFields()" required>
-          <option value="">Select one</option>
-          <option value="iban">IBAN</option>
-          <option value="domestic">Account Number</option>
-        </select>
+       <!-- Inside your form section -->
+<label for="iban">IBAN</label>
+<input type="text" id="iban" name="iban" pattern="[A-Z]{2}\d{2}[A-Z0-9]{1,30}" placeholder="e.g., CH9300762011623852957">
 
-        <!-- IBAN fields -->
-        <div id="ibanFields" class="hidden">
-          <label for="iban">IBAN</label>
-          <input
-            type="text"
-            id="iban"
-            pattern="^[A-Z]{2}\\d{2}[A-Z0-9]{1,30}$"
-            title="Please enter a valid IBAN (e.g., CH9300762011623852957)."
-          >
-              <label for="bic">BIC/SWIFT Code</label>
-          <input
-            type="text"
-            id="bic"
-            pattern="^[A-Z0-9]{8}(?:[A-Z0-9]{3})?$"
-            title="8 or 11 uppercase letters/numbers."
-          >
-        </div>
+<label for="accountNumber">Bank Account Number (non-IBAN)</label>
+<input type="text" id="accountNumber" name="accountNumber" placeholder="e.g., 1234567890">
 
-        <!-- Domestic account fields -->
-        <div id="domesticFields" class="hidden">
-          <label for="accountNumber">Account Number</label>
-          <input
-            type="text"
-            id="accountNumber"
-            pattern="^\\d{5,12}$"
-            title="5–12 digits (numbers only)."
-          >
+<label for="bankCode">Bank Code (e.g., Clearing, Sort, BLZ)</label>
+<input type="text" id="bankCode" name="bankCode" placeholder="e.g., 70000">
 
-          <label for="clearing">Bank Clearing Number (BC)</label>
-          <input
-            type="text"
-            id="clearing"
-            pattern="^\\d{3,5}$"
-            title="3–5-digit clearing number."
-          >
+<script>
+  document.getElementById('reimbursementForm').addEventListener('submit', function(event) {
+    const iban = document.getElementById('iban').value.trim();
+    const acc = document.getElementById('accountNumber').value.trim();
+    const code = document.getElementById('bankCode').value.trim();
 
-          <label for="bic">BIC/SWIFT Code</label>
-          <input
-            type="text"
-            id="bic"
-            pattern="^[A-Z0-9]{8}(?:[A-Z0-9]{3})?$"
-            title="8 or 11 uppercase letters/numbers."
-          >
+    // Check: Must fill either IBAN, or Account Number + Bank Code
+    const hasIBAN = iban.length > 0;
+    const hasAccCombo = acc.length > 0 && code.length > 0;
+
+    if (!hasIBAN && !hasAccCombo) {
+      event.preventDefault();
+      alert('Please fill either IBAN or Account Number + Bank Code.');
+      return false;
+    }
+
+    // Optional: if IBAN is filled, clear the other fields
+    if (hasIBAN) {
+      document.getElementById('accountNumber').value = '';
+      document.getElementById('bankCode').value = '';
+    }
+
+    // If using Account info, clear IBAN
+    if (hasAccCombo) {
+      document.getElementById('iban').value = '';
+    }
+
+    // Reference number and reset (already in your code)
+    const ref = 'REF' + Math.floor(Math.random() * 1000000);
+    document.getElementById('referenceNumber').innerText = 'Request submitted. Your reference number is: ' + ref;
+    document.getElementById('referenceNumber').classList.remove('hidden');
+    document.getElementById('reimbursementForm').reset();
+    document.getElementById('receipts').innerHTML = '';
+  });
+</script>
         </div>
 
         <label for="bankName">Bank Name</label>
