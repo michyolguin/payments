@@ -30,11 +30,11 @@
         <input type="text" id="fullName" required>
 
         <!-- PAYMENT METHOD -->
-        <label for="paymentMethod">Payment Method</label>
+        <label for="paymentMethod">Account Number Type</label>
         <select id="paymentMethod" onchange="toggleBankFields()" required>
           <option value="">Select one</option>
           <option value="iban">IBAN</option>
-          <option value="domestic">Domestic account (CH)</option>
+          <option value="domestic">Account Number</option>
         </select>
 
         <!-- IBAN fields -->
@@ -45,6 +45,13 @@
             id="iban"
             pattern="^[A-Z]{2}\\d{2}[A-Z0-9]{1,30}$"
             title="Please enter a valid IBAN (e.g., CH9300762011623852957)."
+          >
+              <label for="bic">BIC/SWIFT Code</label>
+          <input
+            type="text"
+            id="bic"
+            pattern="^[A-Z0-9]{8}(?:[A-Z0-9]{3})?$"
+            title="8 or 11 uppercase letters/numbers."
           >
         </div>
 
