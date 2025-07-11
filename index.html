@@ -21,6 +21,7 @@
     <button onclick="showStatus()">Check Status</button>
   </div>
 
+  <!----- FORM --->
   <div id="form" class="hidden">
     <h2>Submit Reimbursement Request</h2>
     <form id="reimbursementForm">
@@ -28,11 +29,51 @@
         <label for="fullName">Full Name</label>
         <input type="text" id="fullName" required>
 
-        <label for="iban">IBAN</label>
-        <input type="text" id="iban" pattern="[A-Z]{2}\d{2}[A-Z0-9]{1,30}" required>
+        <!-- PAYMENT METHOD -->
+        <label for="paymentMethod">Payment Method</label>
+        <select id="paymentMethod" onchange="toggleBankFields()" required>
+          <option value="">Select one</option>
+          <option value="iban">IBAN</option>
+          <option value="domestic">Domestic account (CH)</option>
+        </select>
 
-        <label for="bic">BIC</label>
-        <input type="text" id="bic" required>
+        <!-- IBAN fields -->
+        <div id="ibanFields" class="hidden">
+          <label for="iban">IBAN</label>
+          <input
+            type="text"
+            id="iban"
+            pattern="^[A-Z]{2}\\d{2}[A-Z0-9]{1,30}$"
+            title="Please enter a valid IBAN (e.g., CH9300762011623852957)."
+          >
+        </div>
+
+        <!-- Domestic account fields -->
+        <div id="domesticFields" class="hidden">
+          <label for="accountNumber">Account Number</label>
+          <input
+            type="text"
+            id="accountNumber"
+            pattern="^\\d{5,12}$"
+            title="5–12 digits (numbers only)."
+          >
+
+          <label for="clearing">Bank Clearing Number (BC)</label>
+          <input
+            type="text"
+            id="clearing"
+            pattern="^\\d{3,5}$"
+            title="3–5-digit clearing number."
+          >
+
+          <label for="bic">BIC/SWIFT Code</label>
+          <input
+            type="text"
+            id="bic"
+            pattern="^[A-Z0-9]{8}(?:[A-Z0-9]{3})?$"
+            title="8 or 11 uppercase letters/numbers."
+          >
+        </div>
 
         <label for="bankName">Bank Name</label>
         <input type="text" id="bankName" required>
@@ -43,37 +84,37 @@
         <label for="email">Email Address</label>
         <input type="email" id="email" required>
 
-       <label for="projectNumber">Project Number</label>
-<input list="projectNumbers" id="projectNumber" required
-       placeholder="Start typing or click to browse">
+        <!-- PROJECT list -->
+        <label for="projectNumber">Project Number</label>
+        <input list="projectNumbers" id="projectNumber" required
+               placeholder="Start typing or click to browse">
 
-<datalist id="projectNumbers">
-  <!-- value shown & submitted; full text helps users choose -->
-  <option value="Devarya SRIVASTAVA – Doc.CH / A Poetics of Decolonization – P0022">
-  <option value="Edouard ZELLER – Doc.CH / Welfare in a Peculiar State – P0023">
-  <option value="Robert Dean SMITH – Doc.CH / Health as a Form of Politics in North India – P0024">
-  <option value="Théo LEFORT – Doc.CH / The Natures of Displacement – P0026">
-  <option value="Christine LUTRINGER – KAF / Understanding the Links Between Multilateralism and Democracy – P0037">
-  <option value="Graziella MORAES DIAS DA SILVA – SNSF / Elites and Democracy – P0072">
-  <option value="Christine LUTRINGER – ZHAW / Local Environmental Democracy and Green Transitions – P0110">
-  <option value="Anne-Line RODRIGUEZ – Spark / Beyond Bare Life – P0153">
-  <option value="Martina VIARENGO – FNS / Migration, Institutions and Cultural Change – P0178">
-  <option value="Christine LUTRINGER – AHCD 2025 – P0189">
-  <option value="Patricia SPYER – Agora / Imaging Invisibilities – P0216">
-  <option value="Umut YILDIRIM – UE-MCSA Border Contestations 101209730 – P0261">
-  <option value="Patricia SPYER – Images, (In)visibilities and Work on Appearances – S2167">
-  <option value="Graziella MORAES DIAS DA SILVA – FNS / How Elites Shape Unequal Democracies – S2180">
-  <option value="Tripurdaman SINGH – Ambizione / Raja and Praja – S2317">
-  <option value="Till MOSTOWLANSKY – Eccellenza / Quiet Aid – S2319">
-  <option value="Vincent CHETAIL – NCCR / The Impact of Crises on the Global Governance of Migration – S2334">
-  <option value="Michele BENAZZO – Doc.CH / The Forgotten Generation – S2335">
-  <option value="Gina WIRZ – Doc.CH / Forced Migration and Transnational Activism – S2338">
-  <option value="Martina VIARENGO – NCCR / The Longitudinal Impact of Crises – S2340">
-  <option value="Sung Min RHO – SNSF / Labor Market Changes and Gender Polarization – S2343">
-  <option value="Grégoire MALLARD – FNS / Defending Democracy in the European Union – S2355">
-  <option value="Matias LOPEZ – SNIS / Democracy and Redistribution in the Global South – S3704">
-  <option value="Christine LUTRINGER – Salvia / Youth Climate Activism and Local Institutions – S3765">
-</datalist>
+        <datalist id="projectNumbers">
+          <option value="Devarya SRIVASTAVA – Doc.CH / A Poetics of Decolonization – P0022">
+          <option value="Edouard ZELLER – Doc.CH / Welfare in a Peculiar State – P0023">
+          <option value="Robert Dean SMITH – Doc.CH / Health as a Form of Politics in North India – P0024">
+          <option value="Théo LEFORT – Doc.CH / The Natures of Displacement – P0026">
+          <option value="Christine LUTRINGER – KAF / Understanding the Links Between Multilateralism and Democracy – P0037">
+          <option value="Graziella MORAES DIAS DA SILVA – SNSF / Elites and Democracy – P0072">
+          <option value="Christine LUTRINGER – ZHAW / Local Environmental Democracy and Green Transitions – P0110">
+          <option value="Anne-Line RODRIGUEZ – Spark / Beyond Bare Life – P0153">
+          <option value="Martina VIARENGO – FNS / Migration, Institutions and Cultural Change – P0178">
+          <option value="Christine LUTRINGER – AHCD 2025 – P0189">
+          <option value="Patricia SPYER – Agora / Imaging Invisibilities – P0216">
+          <option value="Umut YILDIRIM – UE-MCSA Border Contestations 101209730 – P0261">
+          <option value="Patricia SPYER – Images, (In)visibilities and Work on Appearances – S2167">
+          <option value="Graziella MORAES DIAS DA SILVA – FNS / How Elites Shape Unequal Democracies – S2180">
+          <option value="Tripurdaman SINGH – Ambizione / Raja and Praja – S2317">
+          <option value="Till MOSTOWLANSKY – Eccellenza / Quiet Aid – S2319">
+          <option value="Vincent CHETAIL – NCCR / The Impact of Crises on the Global Governance of Migration – S2334">
+          <option value="Michele BENAZZO – Doc.CH / The Forgotten Generation – S2335">
+          <option value="Gina WIRZ – Doc.CH / Forced Migration and Transnational Activism – S2338">
+          <option value="Martina VIARENGO – NCCR / The Longitudinal Impact of Crises – S2340">
+          <option value="Sung Min RHO – SNSF / Labor Market Changes and Gender Polarization – S2343">
+          <option value="Grégoire MALLARD – FNS / Defending Democracy in the European Union – S2355">
+          <option value="Matias LOPEZ – SNIS / Democracy and Redistribution in the Global South – S3704">
+          <option value="Christine LUTRINGER – Salvia / Youth Climate Activism and Local Institutions – S3765">
+        </datalist>
       </div>
 
       <div id="receipts"></div>
@@ -84,6 +125,7 @@
     <div id="referenceNumber" class="hidden"></div>
   </div>
 
+  <!----- STATUS CHECK --->
   <div id="status" class="hidden">
     <h2>Check Request Status</h2>
     <label for="statusRef">Reference Number</label>
@@ -92,57 +134,89 @@
     <div id="statusResult"></div>
   </div>
 
- <script>
-  function showForm() {
-    document.getElementById('form').classList.remove('hidden');
-    document.getElementById('status').classList.add('hidden');
-  }
+  <!----- SCRIPTS --->
+  <script>
+    function showForm() {
+      document.getElementById('form').classList.remove('hidden');
+      document.getElementById('status').classList.add('hidden');
+    }
 
-  function showStatus() {
-    document.getElementById('status').classList.remove('hidden');
-    document.getElementById('form').classList.add('hidden');
-  }
+    function showStatus() {
+      document.getElementById('status').classList.remove('hidden');
+      document.getElementById('form').classList.add('hidden');
+    }
 
-  function addReceipt() {
-    const container = document.createElement('div');
-    container.classList.add('receipt-entry');
-    container.innerHTML = `
-      <label>Upload Receipt (PDF, PNG, or JPG)</label>
-      <input type="file" accept=".pdf,.png,.jpg" required>
+    /* Toggle IBAN vs domestic */
+    function toggleBankFields() {
+      const method   = document.getElementById('paymentMethod').value;
+      const iban     = document.getElementById('iban');
+      const account  = document.getElementById('accountNumber');
+      const clearing = document.getElementById('clearing');
+      const bic      = document.getElementById('bic');
 
-      <label>Currency</label>
-      <input type="text" placeholder="e.g., CHF" required>
+      // Hide both blocks first
+      document.getElementById('ibanFields').classList.add('hidden');
+      document.getElementById('domesticFields').classList.add('hidden');
 
-      <label>Amount</label>
-      <input type="number" step="0.01" required>
+      // Clear required flags
+      [iban, account, clearing, bic].forEach(f => f.required = false);
 
-      <label>Expense Type</label>
-      <select required>
-        <option value="">Select a type</option>
-        <option value="Travel">Travel</option>
-        <option value="Accommodation">Accommodation</option>
-        <option value="Meals">Meals</option>
-        <option value="Supplies">Supplies</option>
-        <option value="Honorarium">Honorarium</option>
-        <option value="Other">Other</option>
-      </select>
-    `;
-    document.getElementById('receipts').appendChild(container);
-  }
+      if (method === 'iban') {
+        document.getElementById('ibanFields').classList.remove('hidden');
+        iban.required = true;
+      } else if (method === 'domestic') {
+        document.getElementById('domesticFields').classList.remove('hidden');
+        [account, clearing, bic].forEach(f => f.required = true);
+      }
+    }
+    document.addEventListener('DOMContentLoaded', toggleBankFields);
 
-  document.getElementById('reimbursementForm').addEventListener('submit', function(event) {
-    event.preventDefault();
-    const ref = 'REF' + Math.floor(Math.random() * 1000000);
-    document.getElementById('referenceNumber').innerText = 'Request submitted. Your reference number is: ' + ref;
-    document.getElementById('referenceNumber').classList.remove('hidden');
-    document.getElementById('reimbursementForm').reset();
-    document.getElementById('receipts').innerHTML = '';
-  });
+    /* Add dynamic receipt blocks */
+    function addReceipt() {
+      const container = document.createElement('div');
+      container.classList.add('receipt-entry');
+      container.innerHTML = `
+        <label>Upload Receipt (PDF, PNG, or JPG)</label>
+        <input type="file" accept=".pdf,.png,.jpg" required>
 
-  function checkStatus() {
-    const ref = document.getElementById('statusRef').value;
-    document.getElementById('statusResult').innerText = `Status for ${ref}: Pending Review.`;
-  }
-</script>
+        <label>Currency</label>
+        <input type="text" placeholder="e.g., CHF" required>
+
+        <label>Amount</label>
+        <input type="number" step="0.01" required>
+
+        <label>Expense Type</label>
+        <select required>
+          <option value="">Select a type</option>
+          <option value="Travel">Travel</option>
+          <option value="Accommodation">Accommodation</option>
+          <option value="Meals">Meals</option>
+          <option value="Supplies">Supplies</option>
+          <option value="Honorarium">Honorarium</option>
+          <option value="Other">Other</option>
+        </select>
+      `;
+      document.getElementById('receipts').appendChild(container);
+    }
+
+    /* Handle submission */
+    document.getElementById('reimbursementForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const ref = 'REF' + Math.floor(Math.random() * 1_000_000);
+      document.getElementById('referenceNumber').innerText =
+        'Request submitted. Your reference number is: ' + ref;
+      document.getElementById('referenceNumber').classList.remove('hidden');
+      this.reset();
+      document.getElementById('receipts').innerHTML = '';
+      toggleBankFields(); // reset hidden/required states
+    });
+
+    /* Dummy status check */
+    function checkStatus() {
+      const ref = document.getElementById('statusRef').value.trim();
+      document.getElementById('statusResult').innerText =
+        ref ? `Status for ${ref}: Pending Review.` : '';
+    }
+  </script>
 </body>
 </html>
