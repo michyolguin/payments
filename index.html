@@ -152,6 +152,42 @@
         console.error("❌ Error sending to Sheet:", error);
         alert("Something went wrong. Please try again.");
       });
+      
+      const pdfData = new FormData();
+      pdfData.append("fullName", document.getElementById("fullName").value);
+      pdfData.append("iban", document.getElementById("iban").value);
+      pdfData.append("accountNumber", document.getElementById("accountNumber").value);
+      pdfData.append("bankCode", document.getElementById("bankCode").value);
+      pdfData.append("bankName", document.getElementById("bankName").value);
+      pdfData.append("address", document.getElementById("address").value);
+      pdfData.append("email", document.getElementById("email").value);
+      pdfData.append("project", document.getElementById("projectNumber").value);
+      pdfData.append("reference", ref);
+      
+      // Loop over receipt uploads
+      const receiptBlocks = document.querySelectorAll('.receipt-entry');
+      receiptBlocks.forEach((block, index) => {
+        const fileInput = block.querySelector('input[type="file"]');
+        const currency = block.querySelector('input[placeholder*="CHF"]').value;
+        const amount = block.querySelector('input[type="number"]').value;
+        const type = block.querySelector('select').value;
+      
+        if (fileInput.files.length > 0) {
+          pdfData.append(`receipt${index}`, fileInput.files[0]);
+          pdfData.append(`currency${index}`, currency);
+          pdfData.append(`amount${index}`, amount);
+          pdfData.append(`type${index}`, type);
+        }
+      });
+      pdfData.append("receiptCount", receiptBlocks.length); // so the script knows how many to process
+      
+      fetch("https://script.google.com/macros/s/AKfycbyOH6qQMu578exr4sUpYulan5jJqJa1TkGK-bFo75WWMrJnE6h5eC86UGnWAzbAvctWng/exec", {
+        method: "POST",
+        body: pdfData
+      })
+        .then(res => res.text())
+        .then(txt => console.log("✅ PDF sent:", txt))
+        .catch(err => console.error("❌ PDF send failed:", err));
     });
 
     function checkStatus() {
