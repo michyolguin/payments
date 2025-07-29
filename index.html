@@ -21,102 +21,41 @@
     <button onclick="showStatus()">Check Status</button>
   </div>
 
-  <!----- FORM --->
+  <!-- FORM -->
   <div id="form" class="hidden">
     <h2>Submit Reimbursement Request</h2>
-    <form id="reimbursementForm" method="POST" action="https://script.google.com/macros/s/AKfycbwNoQD2z6wmIunlwIoMbeQ6F73htfgL5bhdeZnjjxlz42U0t8PmLA-Y2sR9c7Yew3rc2Q/exec">
+    <form id="reimbursementForm">
       <div class="form-section">
         <label for="fullName">Full Name</label>
-        <input type="text" id="fullName" name="fullName" required>
-
-        <!-- PAYMENT METHOD -->
-       <!-- Inside your form section -->
-<label for="iban">IBAN</label>
-<input type="text" id="iban" name="iban" pattern="[A-Z]{2}\d{2}[A-Z0-9]{1,30}" placeholder="e.g., CH9300762011623852957">
-
-<label for="accountNumber">Bank Account Number (non-IBAN)</label>
-<input type="text" id="accountNumber" name="accountNumber" placeholder="e.g., 1234567890">
-
-<label for="bankCode">Bank Code (e.g., Clearing, Sort, BLZ)</label>
-<input type="text" id="bankCode" name="bankCode" placeholder="e.g., 70000">
-
-<script>
-  document.getElementById('reimbursementForm').addEventListener('submit', function(event) {
-    const iban = document.getElementById('iban').value.trim();
-    const acc = document.getElementById('accountNumber').value.trim();
-    const code = document.getElementById('bankCode').value.trim();
-
-    // Check: Must fill either IBAN, or Account Number + Bank Code
-    const hasIBAN = iban.length > 0;
-    const hasAccCombo = acc.length > 0 && code.length > 0;
-
-    if (!hasIBAN && !hasAccCombo) {
-      event.preventDefault();
-      alert('Please fill either IBAN or Account Number + Bank Code.');
-      return false;
-    }
-
-    // Optional: if IBAN is filled, clear the other fields
-    if (hasIBAN) {
-      document.getElementById('accountNumber').value = '';
-      document.getElementById('bankCode').value = '';
-    }
-
-    // If using Account info, clear IBAN
-    if (hasAccCombo) {
-      document.getElementById('iban').value = '';
-    }
-
-    // Reference number and reset (already in your code)
-    const ref = 'REF' + Math.floor(Math.random() * 1000000);
-    document.getElementById('referenceNumber').innerText = 'Request submitted. Your reference number is: ' + ref;
-    document.getElementById('referenceNumber').classList.remove('hidden');
-    document.getElementById('reimbursementForm').reset();
-    document.getElementById('receipts').innerHTML = '';
-  });
-</script>
-        </div>
-
-        <label for="bankName">Bank Name</label>
-        <input type="text" id="bankName" required>
-
-        <label for="address">Address</label>
-        <textarea id="address" required></textarea>
+        <input type="text" id="fullName" required>
 
         <label for="email">Email Address</label>
-        <input type="email" id="email" name="email" required>
+        <input type="email" id="email" required>
 
-        <!-- PROJECT list -->
-        <label for="projectNumber">Project Lead or Project Name </label>
-        <input list="projectNumbers" id="projectNumber" name="project" required
-               placeholder="Start typing or click to browse">
+        <label for="projectNumber">Project Lead or Project Name</label>
+        <input list="projectNumbers" id="projectNumber" required placeholder="Start typing or click to browse">
 
         <datalist id="projectNumbers">
-          <option value="Devarya SRIVASTAVA – Doc.CH / A Poetics of Decolonization – P0022">
-          <option value="Edouard ZELLER – Doc.CH / Welfare in a Peculiar State – P0023">
-          <option value="Robert Dean SMITH – Doc.CH / Health as a Form of Politics in North India – P0024">
-          <option value="Théo LEFORT – Doc.CH / The Natures of Displacement – P0026">
-          <option value="Christine LUTRINGER – KAF / Understanding the Links Between Multilateralism and Democracy – P0037">
-          <option value="Graziella MORAES DIAS DA SILVA – SNSF / Elites and Democracy – P0072">
-          <option value="Christine LUTRINGER – ZHAW / Local Environmental Democracy and Green Transitions – P0110">
-          <option value="Anne-Line RODRIGUEZ – Spark / Beyond Bare Life – P0153">
-          <option value="Martina VIARENGO – FNS / Migration, Institutions and Cultural Change – P0178">
           <option value="Christine LUTRINGER – AHCD 2025 – P0189">
-          <option value="Patricia SPYER – Agora / Imaging Invisibilities – P0216">
-          <option value="Umut YILDIRIM – UE-MCSA Border Contestations 101209730 – P0261">
-          <option value="Patricia SPYER – Images, (In)visibilities and Work on Appearances – S2167">
-          <option value="Graziella MORAES DIAS DA SILVA – FNS / How Elites Shape Unequal Democracies – S2180">
-          <option value="Tripurdaman SINGH – Ambizione / Raja and Praja – S2317">
-          <option value="Till MOSTOWLANSKY – Eccellenza / Quiet Aid – S2319">
-          <option value="Vincent CHETAIL – NCCR / The Impact of Crises on the Global Governance of Migration – S2334">
-          <option value="Michele BENAZZO – Doc.CH / The Forgotten Generation – S2335">
-          <option value="Gina WIRZ – Doc.CH / Forced Migration and Transnational Activism – S2338">
-          <option value="Martina VIARENGO – NCCR / The Longitudinal Impact of Crises – S2340">
-          <option value="Sung Min RHO – SNSF / Labor Market Changes and Gender Polarization – S2343">
-          <option value="Grégoire MALLARD – FNS / Defending Democracy in the European Union – S2355">
-          <option value="Matias LOPEZ – SNIS / Democracy and Redistribution in the Global South – S3704">
-          <option value="Christine LUTRINGER – Salvia / Youth Climate Activism and Local Institutions – S3765">
+          <option value="Vincent CHETAIL – NCCR / Migration Governance – S2334">
+          <!-- Add other project options here -->
         </datalist>
+
+        <label for="iban">IBAN</label>
+        <input type="text" id="iban" placeholder="e.g., CH9300762011623852957"
+               pattern="[A-Z]{2}\\d{2}[A-Z0-9]{1,30}">
+
+        <label for="accountNumber">Bank Account Number (non-IBAN)</label>
+        <input type="text" id="accountNumber" placeholder="e.g., 1234567890">
+
+        <label for="bankCode">Bank Code (e.g., Clearing, Sort, BLZ)</label>
+        <input type="text" id="bankCode" placeholder="e.g., 70000">
+
+        <label for="bankName">Bank Name</label>
+        <input type="text" id="bankName">
+
+        <label for="address">Your Address</label>
+        <textarea id="address"></textarea>
       </div>
 
       <div id="receipts"></div>
@@ -127,7 +66,7 @@
     <div id="referenceNumber" class="hidden"></div>
   </div>
 
-  <!----- STATUS CHECK --->
+  <!-- STATUS CHECK -->
   <div id="status" class="hidden">
     <h2>Check Request Status</h2>
     <label for="statusRef">Reference Number</label>
@@ -136,7 +75,7 @@
     <div id="statusResult"></div>
   </div>
 
-  <!----- SCRIPTS --->
+  <!-- SCRIPTS -->
   <script>
     function showForm() {
       document.getElementById('form').classList.remove('hidden');
@@ -144,49 +83,20 @@
     }
 
     function showStatus() {
-      document.getElementById('status').classList.remove('hidden');
       document.getElementById('form').classList.add('hidden');
+      document.getElementById('status').classList.remove('hidden');
     }
 
-    /* Toggle IBAN vs domestic */
-    function toggleBankFields() {
-      const method   = document.getElementById('paymentMethod').value;
-      const iban     = document.getElementById('iban');
-      const account  = document.getElementById('accountNumber');
-      const clearing = document.getElementById('clearing');
-      const bic      = document.getElementById('bic');
-
-      // Hide both blocks first
-      document.getElementById('ibanFields').classList.add('hidden');
-      document.getElementById('domesticFields').classList.add('hidden');
-
-      // Clear required flags
-      [iban, account, clearing, bic].forEach(f => f.required = false);
-
-      if (method === 'iban') {
-        document.getElementById('ibanFields').classList.remove('hidden');
-        iban.required = true;
-      } else if (method === 'domestic') {
-        document.getElementById('domesticFields').classList.remove('hidden');
-        [account, clearing, bic].forEach(f => f.required = true);
-      }
-    }
-    document.addEventListener('DOMContentLoaded', toggleBankFields);
-
-    /* Add dynamic receipt blocks */
     function addReceipt() {
       const container = document.createElement('div');
       container.classList.add('receipt-entry');
       container.innerHTML = `
-        <label>Upload Receipt (PDF, PNG, or JPG)</label>
+        <label>Upload Receipt (PDF, PNG, JPG)</label>
         <input type="file" accept=".pdf,.png,.jpg" required>
-
         <label>Currency</label>
         <input type="text" placeholder="e.g., CHF" required>
-
         <label>Amount</label>
         <input type="number" step="0.01" required>
-
         <label>Expense Type</label>
         <select required>
           <option value="">Select a type</option>
@@ -201,35 +111,50 @@
       document.getElementById('receipts').appendChild(container);
     }
 
-    /* Handle submission */
     document.getElementById('reimbursementForm').addEventListener('submit', function(e) {
       e.preventDefault();
+
+      // Validate IBAN vs account+code
+      const iban = document.getElementById('iban').value.trim();
+      const acc = document.getElementById('accountNumber').value.trim();
+      const code = document.getElementById('bankCode').value.trim();
+
+      const hasIBAN = iban.length > 0;
+      const hasCombo = acc.length > 0 && code.length > 0;
+
+      if (!hasIBAN && !hasCombo) {
+        alert('Please enter either IBAN or Account Number + Bank Code.');
+        return;
+      }
+
       const ref = 'REF' + Math.floor(Math.random() * 1_000_000);
-      
+
       const data = new URLSearchParams();
       data.append("fullName", document.getElementById("fullName").value);
       data.append("email", document.getElementById("email").value);
       data.append("project", document.getElementById("projectNumber").value);
       data.append("reference", ref);
-    
+
       fetch("https://script.google.com/macros/s/AKfycbwNoQD2z6wmIunlwIoMbeQ6F73htfgL5bhdeZnjjxlz42U0t8PmLA-Y2sR9c7Yew3rc2Q/exec", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: data
       })
       .then(response => response.text())
-      .then(result => console.log("✅ Sent to Google Sheet:", result))
-      .catch(error => console.error("❌ Error sending to Sheet:", error));
-    
-      document.getElementById('referenceNumber').innerText =
-        'Request submitted. Your reference number is: ' + ref;
-      document.getElementById('referenceNumber').classList.remove('hidden');
-      this.reset();
-      document.getElementById('receipts').innerHTML = '';
-      toggleBankFields(); // optional cleanup
+      .then(result => {
+        console.log("✅ Sent to Google Sheet:", result);
+        document.getElementById('referenceNumber').innerText =
+          'Request submitted. Your reference number is: ' + ref;
+        document.getElementById('referenceNumber').classList.remove('hidden');
+        document.getElementById('reimbursementForm').reset();
+        document.getElementById('receipts').innerHTML = '';
+      })
+      .catch(error => {
+        console.error("❌ Error sending to Sheet:", error);
+        alert("Something went wrong. Please try again.");
+      });
     });
 
-    /* Dummy status check */
     function checkStatus() {
       const ref = document.getElementById('statusRef').value.trim();
       document.getElementById('statusResult').innerText =
