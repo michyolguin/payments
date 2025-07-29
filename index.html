@@ -24,7 +24,7 @@
   <!----- FORM --->
   <div id="form" class="hidden">
     <h2>Submit Reimbursement Request</h2>
-    <form id="reimbursementForm" method="POST" action="https://script.google.com/macros/s/AKfycbz7c7yaktpDhpN7_RN1LjBIxaV0H3zd0W2mynrCiK46-Vf4jIzt-ddpfgb_03kTX47Bxw/exec">
+    <form id="reimbursementForm" method="POST" action="https://script.google.com/macros/s/AKfycbwNoQD2z6wmIunlwIoMbeQ6F73htfgL5bhdeZnjjxlz42U0t8PmLA-Y2sR9c7Yew3rc2Q/exec">
       <div class="form-section">
         <label for="fullName">Full Name</label>
         <input type="text" id="fullName" required>
@@ -211,7 +211,7 @@
       formData.append("project", document.getElementById("projectNumber").value);
       formData.append("reference", ref);
       
-      fetch("https://script.google.com/macros/s/AKfycbz7c7yaktpDhpN7_RN1LjBIxaV0H3zd0W2mynrCiK46-Vf4jIzt-ddpfgb_03kTX47Bxw/exec", {
+      fetch("https://script.google.com/macros/s/AKfycbwNoQD2z6wmIunlwIoMbeQ6F73htfgL5bhdeZnjjxlz42U0t8PmLA-Y2sR9c7Yew3rc2Q/exec", {
         method: "POST",
         body: formData
       })
