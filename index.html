@@ -27,7 +27,7 @@
     <form id="reimbursementForm" method="POST" action="https://script.google.com/macros/s/AKfycbwNoQD2z6wmIunlwIoMbeQ6F73htfgL5bhdeZnjjxlz42U0t8PmLA-Y2sR9c7Yew3rc2Q/exec">
       <div class="form-section">
         <label for="fullName">Full Name</label>
-        <input type="text" id="fullName" required>
+        <input type="text" id="fullName" name="fullName" required>
 
         <!-- PAYMENT METHOD -->
        <!-- Inside your form section -->
@@ -84,11 +84,11 @@
         <textarea id="address" required></textarea>
 
         <label for="email">Email Address</label>
-        <input type="email" id="email" name="email" name="project" required>
+        <input type="email" id="email" name="email" required>
 
         <!-- PROJECT list -->
         <label for="projectNumber">Project Lead or Project Name </label>
-        <input list="projectNumbers" id="projectNumber" required
+        <input list="projectNumbers" id="projectNumber" name="project" required
                placeholder="Start typing or click to browse">
 
         <datalist id="projectNumbers">
