@@ -24,7 +24,7 @@
   <!----- FORM --->
   <div id="form" class="hidden">
     <h2>Submit Reimbursement Request</h2>
-    <form id="reimbursementForm" method="POST" action="https://script.google.com/macros/s/AKfycbw5IEjfrixAlmNOl1LT0Sk0bI0hkzBbr-ltESRHPFeeQuWOSag0GcItLHW-St-TsPzVUQ/exec">
+    <form id="reimbursementForm" method="POST" action="https://script.google.com/macros/s/AKfycbz7c7yaktpDhpN7_RN1LjBIxaV0H3zd0W2mynrCiK46-Vf4jIzt-ddpfgb_03kTX47Bxw/exec">
       <div class="form-section">
         <label for="fullName">Full Name</label>
         <input type="text" id="fullName" required>
@@ -205,6 +205,19 @@
     document.getElementById('reimbursementForm').addEventListener('submit', function(e) {
       e.preventDefault();
       const ref = 'REF' + Math.floor(Math.random() * 1_000_000);
+      const formData = new FormData();
+      formData.append("fullName", document.getElementById("fullName").value);
+      formData.append("email", document.getElementById("email").value);
+      formData.append("project", document.getElementById("projectNumber").value);
+      formData.append("reference", ref);
+      
+      fetch("https://script.google.com/macros/s/AKfycbz7c7yaktpDhpN7_RN1LjBIxaV0H3zd0W2mynrCiK46-Vf4jIzt-ddpfgb_03kTX47Bxw/exec", {
+        method: "POST",
+        body: formData
+      })
+        .then(response => response.text())
+        .then(result => console.log("✅ Sent to Google Sheet:", result))
+        .catch(error => console.error("❌ Error sending to Sheet:", error));
       document.getElementById('referenceNumber').innerText =
         'Request submitted. Your reference number is: ' + ref;
       document.getElementById('referenceNumber').classList.remove('hidden');
