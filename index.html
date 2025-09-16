@@ -41,7 +41,7 @@
         </datalist>
 
         <label>IBAN</label>
-        <input type="text" name="iban" placeholder="e.g, CH9300762011623852957">
+        <input type="text" name="iban" placeholder="e.g., CH9300762011623852957">
 
         <label>Bank Account Number (non-IBAN)</label>
         <input type="text" name="accountNumber" placeholder="e.g., 1234567890">
@@ -127,22 +127,38 @@
       e.preventDefault();
 
       const form = e.target;
+      const ref = 'REF' + Math.floor(Math.random() * 1_000_000);
+      const referenceBox = document.getElementById('referenceNumber');
       const submitButton = form.querySelector('button[type="submit"]');
+
       submitButton.disabled = true;
       submitButton.innerText = 'Submitting…';
-
-      const ref = 'REF' + Math.floor(Math.random() * 1_000_000);
-      const formData = new FormData(form);
-      formData.append("reference", ref);
-      formData.append("receiptCount", receiptIndex);
-
-      const referenceBox = document.getElementById('referenceNumber');
       referenceBox.classList.remove('hidden');
       referenceBox.innerText = 'Submitting, please wait…';
 
+      const data = new URLSearchParams();
+      data.append("fullName", form.fullName.value);
+      data.append("email", form.email.value);
+      data.append("project", form.project.value);
+      data.append("iban", form.iban.value);
+      data.append("accountNumber", form.accountNumber.value);
+      data.append("bankCode", form.bankCode.value);
+      data.append("bankName", form.bankName.value);
+      data.append("address", form.address.value);
+      data.append("reference", ref);
+      data.append("receiptCount", receiptIndex);
+
+      const receiptBlocks = document.querySelectorAll('.receipt-entry');
+      receiptBlocks.forEach((block, index) => {
+        data.append(`currency${index}`, block.querySelector(`[name="currency${index}"]`).value);
+        data.append(`amount${index}`, block.querySelector(`[name="amount${index}"]`).value);
+        data.append(`type${index}`, block.querySelector(`[name="type${index}"]`).value);
+      });
+
       fetch("https://script.google.com/macros/s/AKfycbwNoQD2z6wmIunlwIoMbeQ6F73htfgL5bhdeZnjjxlz42U0t8PmLA-Y2sR9c7Yew3rc2Q/exec", {
         method: "POST",
-        body: formData
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: data
       })
         .then(response => response.text())
         .then(result => {
