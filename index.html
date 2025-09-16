@@ -23,14 +23,27 @@
     <h2>Submit Reimbursement Request</h2>
     <form id="reimbursementForm">
       <div class="form-section">
+        <label for="employeeStatus">Are you employed by the institute?</label>
+        <select id="employeeStatus" name="employeeStatus" required onchange="toggleBankDetails()">
+          <option value="" disabled selected>Please select an option</option>
+          <option value="yes">Yes (Internal Reimbursement)</option>
+          <option value="no">No (External Reimbursement)</option>
+        </select>
+      </div>
+
+      <div class="form-section">
         <label>Full Name</label><input type="text" name="fullName" required>
         <label>Email Address</label><input type="email" name="email" required>
         <label>Project Lead or Project Name</label><input list="projectNumbers" name="project" required placeholder="Start typing or click to browse"><datalist id="projectNumbers"><option value="Christine LUTRINGER – AHCD 2025 – P0189"><option value="Vincent CHETAIL – NCCR / Migration Governance – S2334"></datalist>
+        <label>Your Address</label><textarea name="address"></textarea>
+      </div>
+
+      <div id="bankDetailsSection" class="form-section hidden">
+        <h3>Bank Details (for external reimbursements)</h3>
         <label>IBAN</label><input type="text" name="iban" placeholder="e.g., CH9300762011623852957">
         <label>Bank Account Number (non-IBAN)</label><input type="text" name="accountNumber">
         <label>Bank Code</label><input type="text" name="bankCode">
         <label>Bank Name</label><input type="text" name="bankName">
-        <label>Your Address</label><textarea name="address"></textarea>
       </div>
 
       <h3>Receipts (Max 16)</h3>
@@ -44,33 +57,40 @@
 
   <script>
     let receiptIndex = 0;
-    const maxReceipts = 16; // Set the maximum number of receipts here
+    const maxReceipts = 16;
     const { PDFDocument } = PDFLib;
+
+    function toggleBankDetails() {
+      const status = document.getElementById('employeeStatus').value;
+      const bankSection = document.getElementById('bankDetailsSection');
+      if (status === 'no') {
+        bankSection.classList.remove('hidden');
+      } else {
+        bankSection.classList.add('hidden');
+      }
+    }
 
     function addReceipt() {
       if (receiptIndex >= maxReceipts) {
         alert(`You cannot add more than ${maxReceipts} receipts.`);
         return;
       }
-
       const container = document.createElement('div');
       container.classList.add('receipt-entry');
       container.innerHTML = `
         <h4>Receipt ${receiptIndex + 1}</h4>
         <label>Upload Receipt PDF</label>
         <input type="file" name="receiptFile${receiptIndex}" accept=".pdf" required>
-        
+        <label>Date</label>
+        <input type="date" name="date${receiptIndex}" required>
+        <label>Description</label>
+        <input type="text" name="description${receiptIndex}" placeholder="e.g., Train ticket Geneva to Bern" required>
         <label>Currency</label>
         <input type="text" name="currency${receiptIndex}" placeholder="e.g., CHF" required>
-        
         <label>Amount</label>
         <input type="number" name="amount${receiptIndex}" step="0.01" required>
-        
         <label>Expense Type</label>
-        <select name="type${receiptIndex}" required>
-          <option value="">Select a type</option><option value="Travel">Travel</option><option value="Accommodation">Accommodation</option><option value="Meals">Meals</option><option value="Supplies">Supplies</option><option value="Honorarium">Honorarium</option><option value="Other">Other</option>
-        </select>
-      `;
+        <select name="type${receiptIndex}" required><option value="">Select a type</option><option value="Travel">Travel</option><option value="Accommodation">Accommodation</option><option value="Meals">Meals</option><option value="Supplies">Supplies</option><option value="Honorarium">Honorarium</option><option value="Other">Other</option></select>`;
       document.getElementById('receipts').appendChild(container);
       receiptIndex++;
     }
@@ -78,25 +98,20 @@
     function uint8ArrayToBase64(bytes) {
       let binary = '';
       const len = bytes.byteLength;
-      for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
+      for (let i = 0; i < len; i++) { binary += String.fromCharCode(bytes[i]); }
       return window.btoa(binary);
     }
 
     document.getElementById('reimbursementForm').addEventListener('submit', async function (e) {
       e.preventDefault();
-      
       const form = e.target;
       const ref = 'REF' + Date.now();
       const referenceBox = document.getElementById('referenceNumber');
       const submitButton = form.querySelector('button[type="submit"]');
-
       submitButton.disabled = true;
       submitButton.innerText = 'Processing PDFs…';
       referenceBox.classList.remove('hidden');
       referenceBox.innerText = 'Finding and merging PDFs, please wait…';
-
       const receiptEntries = document.querySelectorAll('.receipt-entry');
       if (receiptEntries.length === 0) {
         alert("Please add at least one receipt.");
@@ -104,10 +119,7 @@
         submitButton.innerText = 'Submit';
         return;
       }
-
       const mergedPdf = await PDFDocument.create();
-      let filesToMergeCount = 0;
-      
       try {
         for (const entry of receiptEntries) {
           const fileInput = entry.querySelector('input[type="file"]');
@@ -117,50 +129,34 @@
             const pdf = await PDFDocument.load(fileBytes);
             const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
             copiedPages.forEach((page) => mergedPdf.addPage(page));
-            filesToMergeCount++;
           }
         }
       } catch (error) {
-          console.error("--- FATAL ERROR DURING PDF MERGING ---", error);
-          referenceBox.innerText = '❌ A critical error occurred while merging the PDFs. One of the files may be corrupt or invalid. Please check the console.';
-          submitButton.disabled = false;
-          submitButton.innerText = 'Submit';
-          return;
-      }
-      
-      if (filesToMergeCount === 0) {
-        alert("Please upload a PDF for at least one receipt entry.");
+        console.error("FATAL ERROR DURING PDF MERGING:", error);
+        referenceBox.innerText = '❌ Error merging PDFs. One of the files may be corrupt.';
         submitButton.disabled = false;
         submitButton.innerText = 'Submit';
         return;
       }
-      
       const mergedPdfBytes = await mergedPdf.save();
       const mergedPdfBase64 = uint8ArrayToBase64(mergedPdfBytes);
-      
       referenceBox.innerText = 'Uploading data…';
       const data = new URLSearchParams();
-      
       const formData = new FormData(form);
       for (const [key, value] of formData.entries()) {
-          if (typeof value !== 'object') {
-             data.append(key, value);
-          }
+        if (typeof value !== 'object') data.append(key, value);
       }
-      
       data.append("reference", ref);
       data.append("receiptCount", receiptIndex);
       data.append("fileBase64", mergedPdfBase64);
       data.append("fileName", `Consolidated_Receipts_${ref}.pdf`);
       data.append("fileMimeType", "application/pdf");
-
-      // --- URL HAS BEEN UPDATED WITH YOUR LATEST DEPLOYMENT ---
-      fetch("https://script.google.com/macros/s/AKfycbxtweBRieXeNjaXfkN7qoWfnw3wCJIDY_26C6oqE1u6lU6ccRvl7mU2L0bt-ZYv-fss/exec", {
+      
+      // --- URL UPDATED WITH YOUR LATEST DEPLOYMENT ---
+      fetch("https://script.google.com/macros/s/AKfycbyTgYLIWhtkKE8nyoMDH6z-q31L9WdaaM6NiI-wYyqGi7xTwHRjoNkBHVw6J6ujCZK_Ug/exec", {
         method: "POST",
         body: data
-      })
-      .then(response => response.text())
-      .then(result => {
+      }).then(response => response.text()).then(result => {
         if (result.includes("❌")) {
           console.error("Error from Google Script:", result);
           referenceBox.innerText = result;
@@ -170,13 +166,12 @@
           form.reset();
           document.getElementById('receipts').innerHTML = '';
           receiptIndex = 0;
+          toggleBankDetails(); // Hide bank details again on reset
         }
-      })
-      .catch(error => {
+      }).catch(error => {
         console.error("Network or Fetch Error:", error);
         referenceBox.innerText = '❌ A network error occurred. Please check your connection and try again.';
-      })
-      .finally(() => {
+      }).finally(() => {
         submitButton.disabled = false;
         submitButton.innerText = 'Submit';
       });
