@@ -33,7 +33,7 @@
         <label>Your Address</label><textarea name="address"></textarea>
       </div>
 
-      <h3>Receipts</h3>
+      <h3>Receipts (Max 16)</h3>
       <div id="receipts"></div>
       <button type="button" onclick="addReceipt()">Add Receipt</button>
       <br><br>
@@ -44,12 +44,19 @@
 
   <script>
     let receiptIndex = 0;
-    const { PDFDocument } = PDFLib; // Get the PDFDocument class from the library
+    const maxReceipts = 16; // Set the maximum number of receipts here
+    const { PDFDocument } = PDFLib;
 
     function addReceipt() {
+      // --- THIS IS THE NEW CHECK ---
+      if (receiptIndex >= maxReceipts) {
+        alert(`You cannot add more than ${maxReceipts} receipts.`);
+        return; // Stop the function from running
+      }
+      // --- END OF NEW CHECK ---
+
       const container = document.createElement('div');
       container.classList.add('receipt-entry');
-      // This creates the full block for each receipt entry
       container.innerHTML = `
         <h4>Receipt ${receiptIndex + 1}</h4>
         <label>Upload Receipt PDF</label>
@@ -70,7 +77,6 @@
       receiptIndex++;
     }
 
-    // Helper function to convert a Uint8Array to a Base64 string
     function uint8ArrayToBase64(bytes) {
       let binary = '';
       const len = bytes.byteLength;
@@ -83,8 +89,6 @@
     document.getElementById('reimbursementForm').addEventListener('submit', async function (e) {
       e.preventDefault();
       
-      console.log("--- Submit button clicked. Starting process. ---");
-
       const form = e.target;
       const ref = 'REF' + Date.now();
       const referenceBox = document.getElementById('referenceNumber');
@@ -96,67 +100,46 @@
       referenceBox.innerText = 'Finding and merging PDFs, please wait…';
 
       const receiptEntries = document.querySelectorAll('.receipt-entry');
-      console.log(`Found ${receiptEntries.length} receipt entries in the form.`);
-
       if (receiptEntries.length === 0) {
         alert("Please add at least one receipt.");
         submitButton.disabled = false;
         submitButton.innerText = 'Submit';
-        console.error("Submission stopped: No receipt entries found.");
         return;
       }
 
       const mergedPdf = await PDFDocument.create();
       let filesToMergeCount = 0;
       
-      console.log("Starting to loop through entries to find and merge PDFs...");
-      
       try {
-        for (let i = 0; i < receiptEntries.length; i++) {
-          const entry = receiptEntries[i];
+        for (const entry of receiptEntries) {
           const fileInput = entry.querySelector('input[type="file"]');
-          
           if (fileInput && fileInput.files.length > 0) {
             const file = fileInput.files[0];
-            console.log(`Entry #${i+1}: Found file "${file.name}". Reading its contents.`);
-            
             const fileBytes = await file.arrayBuffer();
             const pdf = await PDFDocument.load(fileBytes);
-            console.log(`   -> Successfully loaded "${file.name}" into a PDF object.`);
-            
             const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
             copiedPages.forEach((page) => mergedPdf.addPage(page));
-            console.log(`   -> Copied ${copiedPages.length} pages into the main document.`);
-            
             filesToMergeCount++;
-          } else {
-            console.warn(`Entry #${i+1}: No file found or selected.`);
           }
         }
       } catch (error) {
-          console.error("--- FATAL ERROR DURING PDF MERGING ---");
-          console.error(error);
-          referenceBox.innerText = '❌ A critical error occurred while merging the PDFs. Please check the console for details.';
+          console.error("--- FATAL ERROR DURING PDF MERGING ---", error);
+          referenceBox.innerText = '❌ A critical error occurred while merging the PDFs. Please check the console.';
           submitButton.disabled = false;
           submitButton.innerText = 'Submit';
-          return; // Stop the function here
+          return;
       }
-      
-      console.log(`Finished PDF processing loop. Total files merged: ${filesToMergeCount}.`);
       
       if (filesToMergeCount === 0) {
         alert("Please upload a PDF for at least one receipt entry.");
         submitButton.disabled = false;
         submitButton.innerText = 'Submit';
-        console.error("Submission stopped: No files were selected for merging.");
         return;
       }
       
-      console.log("Saving the merged PDF into a single file...");
       const mergedPdfBytes = await mergedPdf.save();
       const mergedPdfBase64 = uint8ArrayToBase64(mergedPdfBytes);
-      console.log("Merged PDF saved and converted to Base64. Preparing to upload.");
-
+      
       referenceBox.innerText = 'Uploading data…';
       const data = new URLSearchParams();
       
@@ -169,14 +152,12 @@
       
       data.append("reference", ref);
       data.append("receiptCount", receiptIndex);
-      
       data.append("fileBase64", mergedPdfBase64);
       data.append("fileName", `Consolidated_Receipts_${ref}.pdf`);
       data.append("fileMimeType", "application/pdf");
 
-      console.log("Data payload is ready. Sending to Google Apps Script...");
-
-      fetch("https://script.google.com/macros/s/AKfycbzjlYyL7MZOSicjuOv_Bk6gmsxEQ8SdQnFb0IlCdjeMjn72JRsun_y1XWtGbpdLrICeAA/exec", {
+      // --- URL UPDATED TO YOUR LATEST DEPLOYMENT ---
+      fetch("https://script.google.com/macros/s/AKfycbwFKnVszRDX3SU4bGvw_S2axKklnLgEitnpeKa-OQNNfdHG05xQWLo6RIAhTzoPpuJGQA/exec", {
         method: "POST",
         body: data
       })
