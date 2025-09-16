@@ -26,35 +26,33 @@
     <h2>Submit Reimbursement Request</h2>
     <form id="reimbursementForm">
       <div class="form-section">
-        <label for="fullName">Full Name</label>
-        <input type="text" id="fullName" required>
+        <label>Full Name</label>
+        <input type="text" name="fullName" required>
 
-        <label for="email">Email Address</label>
-        <input type="email" id="email" required>
+        <label>Email Address</label>
+        <input type="email" name="email" required>
 
-        <label for="projectNumber">Project Lead or Project Name</label>
-        <input list="projectNumbers" id="projectNumber" required placeholder="Start typing or click to browse">
-
+        <label>Project Lead or Project Name</label>
+        <input list="projectNumbers" name="project" required placeholder="Start typing or click to browse">
         <datalist id="projectNumbers">
           <option value="Christine LUTRINGER – AHCD 2025 – P0189">
           <option value="Vincent CHETAIL – NCCR / Migration Governance – S2334">
-          <!-- Add other project options here -->
         </datalist>
 
-        <label for="iban">IBAN</label>
-        <input type="text" id="iban" name="iban" placeholder="e.g, CH9300762011623852957">
+        <label>IBAN</label>
+        <input type="text" name="iban" placeholder="e.g, CH9300762011623852957">
 
-        <label for="accountNumber">Bank Account Number (non-IBAN)</label>
-        <input type="text" id="accountNumber" placeholder="e.g., 1234567890">
+        <label>Bank Account Number (non-IBAN)</label>
+        <input type="text" name="accountNumber" placeholder="e.g., 1234567890">
 
-        <label for="bankCode">Bank Code (e.g., Clearing, Sort, BLZ)</label>
-        <input type="text" id="bankCode" placeholder="e.g., 70000">
+        <label>Bank Code (e.g., Clearing, Sort, BLZ)</label>
+        <input type="text" name="bankCode" placeholder="e.g., 70000">
 
-        <label for="bankName">Bank Name</label>
-        <input type="text" id="bankName">
+        <label>Bank Name</label>
+        <input type="text" name="bankName">
 
-        <label for="address">Your Address</label>
-        <textarea id="address"></textarea>
+        <label>Your Address</label>
+        <textarea name="address"></textarea>
       </div>
 
       <div id="receipts"></div>
@@ -76,6 +74,9 @@
 
   <!-- SCRIPTS -->
   <script>
+    let receiptIndex = 0;
+    const maxReceipts = 16;
+
     function showForm() {
       document.getElementById('form').classList.remove('hidden');
       document.getElementById('status').classList.add('hidden');
@@ -87,17 +88,25 @@
     }
 
     function addReceipt() {
+      if (receiptIndex >= maxReceipts) {
+        alert("Maximum of 16 receipts allowed.");
+        return;
+      }
+
       const container = document.createElement('div');
       container.classList.add('receipt-entry');
       container.innerHTML = `
         <label>Upload Receipt (PDF, PNG, JPG)</label>
-        <input type="file" accept=".pdf,.png,.jpg" required>
+        <input type="file" name="receipt${receiptIndex}" accept=".pdf,.png,.jpg" required>
+
         <label>Currency</label>
-        <input type="text" placeholder="e.g., CHF" required>
+        <input type="text" name="currency${receiptIndex}" placeholder="e.g., CHF" required>
+
         <label>Amount</label>
-        <input type="number" step="0.01" required>
+        <input type="number" name="amount${receiptIndex}" step="0.01" required>
+
         <label>Expense Type</label>
-        <select required>
+        <select name="type${receiptIndex}" required>
           <option value="">Select a type</option>
           <option value="Travel">Travel</option>
           <option value="Accommodation">Accommodation</option>
@@ -108,86 +117,37 @@
         </select>
       `;
       document.getElementById('receipts').appendChild(container);
+      receiptIndex++;
     }
 
-    document.getElementById('reimbursementForm').addEventListener('submit', function(e) {
+    document.getElementById('reimbursementForm').addEventListener('submit', function (e) {
       e.preventDefault();
 
-      // Validate IBAN vs account+code
-      const iban = document.getElementById('iban').value.trim();
-      const acc = document.getElementById('accountNumber').value.trim();
-      const code = document.getElementById('bankCode').value.trim();
-
-      const hasIBAN = iban.length > 0;
-      const hasCombo = acc.length > 0 && code.length > 0;
-
-      if (!hasIBAN && !hasCombo) {
-        alert('Please enter either IBAN or Account Number + Bank Code.');
-        return;
-      }
-
+      const form = e.target;
       const ref = 'REF' + Math.floor(Math.random() * 1_000_000);
+      const formData = new FormData(form);
 
-      const data = new URLSearchParams();
-      data.append("fullName", document.getElementById("fullName").value);
-      data.append("email", document.getElementById("email").value);
-      data.append("project", document.getElementById("projectNumber").value);
-      data.append("reference", ref);
+      formData.append("reference", ref);
+      formData.append("receiptCount", receiptIndex);
 
       fetch("https://script.google.com/macros/s/AKfycbwNoQD2z6wmIunlwIoMbeQ6F73htfgL5bhdeZnjjxlz42U0t8PmLA-Y2sR9c7Yew3rc2Q/exec", {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: data
+        body: formData
       })
-      .then(response => response.text())
-      .then(result => {
-        console.log("✅ Sent to Google Sheet:", result);
-        document.getElementById('referenceNumber').innerText =
-          'Request submitted. Your reference number is: ' + ref;
-        document.getElementById('referenceNumber').classList.remove('hidden');
-        document.getElementById('reimbursementForm').reset();
-        document.getElementById('receipts').innerHTML = '';
-      })
-      .catch(error => {
-        console.error("❌ Error sending to Sheet:", error);
-        alert("Something went wrong. Please try again.");
-      });
-      
-      const pdfData = new FormData();
-      pdfData.append("fullName", document.getElementById("fullName").value);
-      pdfData.append("iban", document.getElementById("iban").value);
-      pdfData.append("accountNumber", document.getElementById("accountNumber").value);
-      pdfData.append("bankCode", document.getElementById("bankCode").value);
-      pdfData.append("bankName", document.getElementById("bankName").value);
-      pdfData.append("address", document.getElementById("address").value);
-      pdfData.append("email", document.getElementById("email").value);
-      pdfData.append("project", document.getElementById("projectNumber").value);
-      pdfData.append("reference", ref);
-      
-      // Loop over receipt uploads
-      const receiptBlocks = document.querySelectorAll('.receipt-entry');
-      receiptBlocks.forEach((block, index) => {
-        const fileInput = block.querySelector('input[type="file"]');
-        const currency = block.querySelector('input[placeholder*="CHF"]').value;
-        const amount = block.querySelector('input[type="number"]').value;
-        const type = block.querySelector('select').value;
-      
-        if (fileInput.files.length > 0) {
-          pdfData.append(`receipt${index}`, fileInput.files[0]);
-          pdfData.append(`currency${index}`, currency);
-          pdfData.append(`amount${index}`, amount);
-          pdfData.append(`type${index}`, type);
-        }
-      });
-      pdfData.append("receiptCount", receiptBlocks.length); // so the script knows how many to process
-      
-      fetch("https://script.google.com/macros/s/AKfycbyOH6qQMu578exr4sUpYulan5jJqJa1TkGK-bFo75WWMrJnE6h5eC86UGnWAzbAvctWng/exec", {
-        method: "POST",
-        body: pdfData
-      })
-        .then(res => res.text())
-        .then(txt => console.log("✅ PDF sent:", txt))
-        .catch(err => console.error("❌ PDF send failed:", err));
+        .then(response => response.text())
+        .then(result => {
+          console.log("✅ Submission result:", result);
+          document.getElementById('referenceNumber').innerText =
+            'Request submitted. Your reference number is: ' + ref;
+          document.getElementById('referenceNumber').classList.remove('hidden');
+          form.reset();
+          document.getElementById('receipts').innerHTML = '';
+          receiptIndex = 0;
+        })
+        .catch(error => {
+          console.error("❌ Error submitting form:", error);
+          alert("Something went wrong. Please try again.");
+        });
     });
 
     function checkStatus() {
