@@ -4,14 +4,17 @@
   <meta charset="UTF-8">
   <title>Reimbursement Portal</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 2rem; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 2rem; background-color: #f4f4f9; color: #333; }
+    h1, h2 { color: #2c3e50; }
     .hidden { display: none; }
-    .form-section { margin-bottom: 2rem; }
-    label { display: block; margin-top: 1rem; }
-    input, select, textarea { width: 100%; padding: 0.5rem; margin-top: 0.3rem; }
-    button { padding: 0.5rem 1rem; margin-top: 1rem; }
-    .receipt-entry { margin-bottom: 1rem; padding: 1rem; border: 1px solid #ccc; }
-    #referenceNumber { margin-top: 1.5rem; font-weight: bold; white-space: pre-line; }
+    .form-section, .receipt-entry { margin-bottom: 1.5rem; padding: 1.5rem; border: 1px solid #ddd; border-radius: 8px; background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    label { display: block; margin-top: 1rem; font-weight: bold; color: #555; }
+    input, select, textarea { width: 100%; padding: 0.75rem; margin-top: 0.3rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    button { background-color: #3498db; color: white; padding: 0.75rem 1.5rem; margin-top: 1rem; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; transition: background-color 0.3s; }
+    button:hover { background-color: #2980b9; }
+    button:disabled { background-color: #a9a9a9; cursor: not-allowed; }
+    #referenceNumber { margin-top: 1.5rem; font-weight: bold; white-space: pre-line; padding: 1rem; border-radius: 4px; background-color: #eafaf1; border: 1px solid #b8e9c9; }
+    #statusResult { margin-top: 1rem; }
   </style>
 </head>
 <body>
@@ -22,7 +25,6 @@
     <button onclick="showStatus()">Check Status</button>
   </div>
 
-  <!-- FORM -->
   <div id="form" class="hidden">
     <h2>Submit Reimbursement Request</h2>
     <form id="reimbursementForm">
@@ -66,7 +68,6 @@
     <div id="referenceNumber" class="hidden"></div>
   </div>
 
-  <!-- STATUS CHECK -->
   <div id="status" class="hidden">
     <h2>Check Request Status</h2>
     <label for="statusRef">Reference Number</label>
@@ -75,7 +76,6 @@
     <div id="statusResult"></div>
   </div>
 
-  <!-- SCRIPTS -->
   <script>
     let receiptIndex = 0;
     const maxReceipts = 16;
@@ -99,8 +99,9 @@
       const container = document.createElement('div');
       container.classList.add('receipt-entry');
       container.innerHTML = `
+        <h4>Receipt ${receiptIndex + 1}</h4>
         <label>Upload Receipt (PDF, PNG, JPG)</label>
-        <input type="file" name="receipt${receiptIndex}" accept=".pdf,.png,.jpg" required>
+        <input type="file" name="receiptFile${receiptIndex}" accept=".pdf,.png,.jpg,.jpeg" required>
 
         <label>Currency</label>
         <input type="text" name="currency${receiptIndex}" placeholder="e.g., CHF" required>
@@ -122,21 +123,32 @@
       document.getElementById('receipts').appendChild(container);
       receiptIndex++;
     }
+    
+    // Helper function to read a file as a Base64 string
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result.split(',')[1]); // Get only the Base64 part
+        reader.onerror = error => reject(error);
+      });
+    }
 
-    document.getElementById('reimbursementForm').addEventListener('submit', function (e) {
+    document.getElementById('reimbursementForm').addEventListener('submit', async function (e) {
       e.preventDefault();
 
       const form = e.target;
-      const ref = 'REF' + Math.floor(Math.random() * 1_000_000);
+      const ref = 'REF' + Date.now();
       const referenceBox = document.getElementById('referenceNumber');
       const submitButton = form.querySelector('button[type="submit"]');
 
       submitButton.disabled = true;
       submitButton.innerText = 'Submitting…';
       referenceBox.classList.remove('hidden');
-      referenceBox.innerText = 'Submitting, please wait…';
+      referenceBox.innerText = 'Submitting, please wait… This may take a moment if you have large files.';
 
       const data = new URLSearchParams();
+      
       data.append("fullName", form.fullName.value);
       data.append("email", form.email.value);
       data.append("project", form.project.value);
@@ -147,30 +159,40 @@
       data.append("address", form.address.value);
       data.append("reference", ref);
       data.append("receiptCount", receiptIndex);
-
+      
       const receiptBlocks = document.querySelectorAll('.receipt-entry');
-      receiptBlocks.forEach((block, index) => {
-        data.append(`currency${index}`, block.querySelector(`[name="currency${index}"]`).value);
-        data.append(`amount${index}`, block.querySelector(`[name="amount${index}"]`).value);
-        data.append(`type${index}`, block.querySelector(`[name="type${index}"]`).value);
-      });
-
-      fetch("https://script.google.com/macros/s/AKfycbwNoQD2z6wmIunlwIoMbeQ6F73htfgL5bhdeZnjjxlz42U0t8PmLA-Y2sR9c7Yew3rc2Q/exec", {
+      for (let i = 0; i < receiptBlocks.length; i++) {
+          const block = receiptBlocks[i];
+          data.append(`currency${i}`, block.querySelector(`[name="currency${i}"]`).value);
+          data.append(`amount${i}`, block.querySelector(`[name="amount${i}"]`).value);
+          data.append(`type${i}`, block.querySelector(`[name="type${i}"]`).value);
+          
+          const fileInput = block.querySelector(`[name="receiptFile${i}"]`);
+          if (fileInput.files.length > 0) {
+              const file = fileInput.files[0];
+              const base64String = await fileToBase64(file);
+              data.append(`fileBase64_${i}`, base64String);
+              data.append(`fileName_${i}`, file.name);
+              data.append(`fileMimeType_${i}`, file.type);
+          }
+      }
+      
+      // THIS URL has been updated to your new deployment
+      fetch("https://script.google.com/macros/s/AKfycbzjlYyL7MZOSicjuOv_Bk6gmsxEQ8SdQnFb0IlCdjeMjn72JRsun_y1XWtGbpdLrICeAA/exec", {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: data
       })
         .then(response => response.text())
         .then(result => {
           console.log("✅ Submission result:", result);
-          referenceBox.innerText = '✅ Request submitted.\nYour reference number is: ' + ref;
+          referenceBox.innerText = '✅ Request submitted successfully!\nYour reference number is: ' + ref;
           form.reset();
           document.getElementById('receipts').innerHTML = '';
           receiptIndex = 0;
         })
         .catch(error => {
           console.error("❌ Error submitting form:", error);
-          referenceBox.innerText = '❌ Something went wrong. Please try again.';
+          referenceBox.innerText = '❌ Something went wrong. Please check the console and try again.';
         })
         .finally(() => {
           submitButton.disabled = false;
@@ -181,7 +203,7 @@
     function checkStatus() {
       const ref = document.getElementById('statusRef').value.trim();
       document.getElementById('statusResult').innerText =
-        ref ? `Status for ${ref}: Pending Review.` : '';
+        ref ? `Status for ${ref}: Pending Review.` : 'Please enter a reference number.';
     }
   </script>
 </body>
