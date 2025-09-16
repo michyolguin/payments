@@ -11,6 +11,7 @@
     input, select, textarea { width: 100%; padding: 0.5rem; margin-top: 0.3rem; }
     button { padding: 0.5rem 1rem; margin-top: 1rem; }
     .receipt-entry { margin-bottom: 1rem; padding: 1rem; border: 1px solid #ccc; }
+    #referenceNumber { margin-top: 1.5rem; font-weight: bold; white-space: pre-line; }
   </style>
 </head>
 <body>
@@ -55,9 +56,11 @@
         <textarea name="address"></textarea>
       </div>
 
+      <h3>Receipts</h3>
       <div id="receipts"></div>
       <button type="button" onclick="addReceipt()">Add Receipt</button>
 
+      <br><br>
       <button type="submit">Submit</button>
     </form>
     <div id="referenceNumber" class="hidden"></div>
@@ -124,11 +127,18 @@
       e.preventDefault();
 
       const form = e.target;
+      const submitButton = form.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      submitButton.innerText = 'Submitting…';
+
       const ref = 'REF' + Math.floor(Math.random() * 1_000_000);
       const formData = new FormData(form);
-
       formData.append("reference", ref);
       formData.append("receiptCount", receiptIndex);
+
+      const referenceBox = document.getElementById('referenceNumber');
+      referenceBox.classList.remove('hidden');
+      referenceBox.innerText = 'Submitting, please wait…';
 
       fetch("https://script.google.com/macros/s/AKfycbwNoQD2z6wmIunlwIoMbeQ6F73htfgL5bhdeZnjjxlz42U0t8PmLA-Y2sR9c7Yew3rc2Q/exec", {
         method: "POST",
@@ -137,16 +147,18 @@
         .then(response => response.text())
         .then(result => {
           console.log("✅ Submission result:", result);
-          document.getElementById('referenceNumber').innerText =
-            'Request submitted. Your reference number is: ' + ref;
-          document.getElementById('referenceNumber').classList.remove('hidden');
+          referenceBox.innerText = '✅ Request submitted.\nYour reference number is: ' + ref;
           form.reset();
           document.getElementById('receipts').innerHTML = '';
           receiptIndex = 0;
         })
         .catch(error => {
           console.error("❌ Error submitting form:", error);
-          alert("Something went wrong. Please try again.");
+          referenceBox.innerText = '❌ Something went wrong. Please try again.';
+        })
+        .finally(() => {
+          submitButton.disabled = false;
+          submitButton.innerText = 'Submit';
         });
     });
 
