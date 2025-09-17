@@ -25,14 +25,6 @@
 <body>
   <h1>Reimbursement Portal</h1>
 
-  <div id="statusCheckSection" class="form-section">
-    <h3>Check Request Status</h3>
-    <label for="statusRef">Enter your reference number:</label>
-    <input type="text" id="statusRef" placeholder="e.g., REF1758057795751">
-    <button onclick="checkStatus()">Check Status</button>
-    <div id="statusResult" style="margin-top: 1rem; font-weight: bold;"></div>
-  </div>
-
   <div id="form">
     <h2>Submit New Reimbursement Request</h2>
     <form id="reimbursementForm">
@@ -150,6 +142,7 @@
         document.getElementById('referenceNumber').innerText = message;
     }
 
+    /*
     async function checkStatus() {
         const ref = document.getElementById('statusRef').value;
         const resultDiv = document.getElementById('statusResult');
@@ -167,6 +160,7 @@
             console.error("Status check error:", error);
         }
     }
+    */
 
     function uint8ArrayToBase64(bytes) {
       let binary = '';
@@ -234,7 +228,7 @@
         if (result.includes("❌")) {
           referenceBox.innerHTML = result;
         } else {
-          referenceBox.innerHTML = `✅ Request submitted successfully!<br><br><strong>PLEASE SAVE YOUR REFERENCE NUMBER:</strong><br><span style="font-size: 1.2em; background-color: #d4edda; padding: 5px 10px; border-radius: 4px;">${ref}</span><br><br>You can use this number to check the reimbursement status at the top of this page.`;
+          referenceBox.innerHTML = `✅ Request submitted successfully!<br><br><strong>PLEASE SAVE YOUR REFERENCE NUMBER:</strong><br><span style="font-size: 1.2em; background-color: #d4edda; padding: 5px 10px; border-radius: 4px;">${ref}</span><br><br>You can use this number to check the reimbursement status later.`;
           form.reset();
           document.getElementById('receipts').innerHTML = '';
           receiptIndex = 0;
