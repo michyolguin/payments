@@ -54,7 +54,7 @@
       </div>
 
       <div id="bankDetailsSection" class="form-section hidden">
-        <h3>Bank Details (for external reimbursements)</h3>
+        <h3>Bank Details</h3>
         <label>IBAN</label><input type="text" name="iban">
         <label>Bank Account Number (non-IBAN)</label><input type="text" name="accountNumber">
         <label>Bank Code</label><input type="text" name="bankCode">
@@ -76,6 +76,7 @@
             <input type="radio" name="planeReason" value="Exception" onclick="togglePlaneExceptionDetails(true)"><label>I took a plane in Europe for a trip of less than 7 hours due to an exception:</label><br>
         </div>
         <div id="planeExceptionDetails" class="hidden" style="padding-left: 2rem; margin-top: 1rem;">
+            <p>Please specify the exception:</p>
             <div class="radio-group">
                 <input type="radio" name="planeException" value="Health"><label>Health impairments</label><br>
                 <input type="radio" name="planeException" value="Care Responsibilities"><label>Reconciling care responsibilities and work</label><br>
@@ -96,7 +97,9 @@
   </div>
 
   <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyNpZGAcwYGV_8XyhlTT_LTfllUF7xD3KAq1Fp1a7HMrIs6xi_V0Pu9z2iZDhHb2fu_WQ/exec";
+    // --- URL UPDATED WITH YOUR LATEST DEPLOYMENT ---
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwFKnVszRDX3SU4bGvw_S2axKklnLgEitnpeKa-OQNNfdHG05xQWLo6RIAhTzoPpuJGQA/exec";
+    
     let receiptIndex = 0;
     const maxReceipts = 16;
     const { PDFDocument } = PDFLib;
@@ -143,10 +146,8 @@
     }
 
     function updateProgress(percent, message) {
-        const progressBar = document.getElementById('progressBar');
-        const referenceNumberBox = document.getElementById('referenceNumber');
-        progressBar.style.width = percent + '%';
-        referenceNumberBox.innerText = message;
+        document.getElementById('progressBar').style.width = percent + '%';
+        document.getElementById('referenceNumber').innerText = message;
     }
 
     async function checkStatus() {
@@ -163,7 +164,6 @@
             resultDiv.innerText = `Status for ${ref}: ${status}`;
         } catch (error) {
             resultDiv.innerText = "Could not connect to server to check status.";
-            console.error("Status check error:", error);
         }
     }
 
@@ -207,11 +207,7 @@
           }
         }
       } catch (error) {
-        console.error("FATAL ERROR DURING PDF MERGING:", error);
-        referenceBox.innerText = '❌ Error merging PDFs. One of the files may be corrupt.';
-        submitButton.disabled = false;
-        progressContainer.classList.add('hidden');
-        return;
+        updateProgress(100, ''); progressContainer.classList.add('hidden'); referenceBox.innerText = '❌ Error merging PDFs. One of the files may be corrupt.'; submitButton.disabled = false; return;
       }
       
       updateProgress(70, 'Preparing upload...');
@@ -230,16 +226,13 @@
       
       updateProgress(90, 'Uploading...');
       fetch(SCRIPT_URL, {
-        method: "POST",
-        body: data
+        method: "POST", body: data
       }).then(response => response.text()).then(result => {
         updateProgress(100, '');
         progressContainer.classList.add('hidden');
         if (result.includes("❌")) {
-          console.error("Error from Google Script:", result);
           referenceBox.innerHTML = result;
         } else {
-          console.log("✅ Success from Google Script:", result);
           referenceBox.innerHTML = `✅ Request submitted successfully!<br><br><strong>PLEASE SAVE YOUR REFERENCE NUMBER:</strong><br><span style="font-size: 1.2em; background-color: #d4edda; padding: 5px 10px; border-radius: 4px;">${ref}</span><br><br>You can use this number to check the reimbursement status at the top of this page.`;
           form.reset();
           document.getElementById('receipts').innerHTML = '';
@@ -248,7 +241,6 @@
           checkTravelStatus();
         }
       }).catch(error => {
-        console.error("Network or Fetch Error:", error);
         referenceBox.innerText = '❌ A network error occurred. Please check your connection and try again.';
         progressContainer.classList.add('hidden');
       }).finally(() => {
