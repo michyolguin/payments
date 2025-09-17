@@ -90,7 +90,7 @@
 
   <script>
     // --- URL UPDATED WITH YOUR LATEST DEPLOYMENT ---
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzimaL8zfTDCPUXC1mpU0og_k9WPiH9zhZgcchu87OiqO1vwpnxOl0RJz_Hxj5Q_nJ0g/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxV3df9lbR6ziDPT04gCszdanmKgW2S05yeih6N4vAzbshm9qwTNnynAY_y8JaTscfV6A/exec";
     
     let receiptIndex = 0;
     const maxReceipts = 16;
@@ -221,7 +221,7 @@
       
       updateProgress(90, 'Uploading...');
       fetch(SCRIPT_URL, {
-        method: "POST", body: data
+        method: "POST", body: data, redirect: 'follow'
       }).then(response => response.text()).then(result => {
         updateProgress(100, '');
         progressContainer.classList.add('hidden');
