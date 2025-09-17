@@ -98,7 +98,7 @@
 
   <script>
     // --- URL UPDATED WITH YOUR LATEST DEPLOYMENT ---
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyBjdY_ex9FGu1TMrxKiW7fvxiAeQqpHCxYhYmex_BHPomvFUp5-9MxbuCjl4-IEGt3Ow/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwBsB19QYrOajqV8EesnvTQldi1a8KZu-e7ZCqQS5UxfbI7w1aX-K_7C1iufN4HiEAR4Q/exec";
     
     let receiptIndex = 0;
     const maxReceipts = 16;
@@ -126,11 +126,11 @@
         const allTypeSelects = document.querySelectorAll('select[name^="type"]');
         let travelSelected = false;
         allTypeSelects.forEach(select => { if (select.value === 'Travel') travelSelected = true; });
-        document.getElementById('planeReasonSection').classList.toggle('hidden', !travelSelected);
+        document.getElementById('planeReasonSection').classList.toggle('hidden',!travelSelected);
     }
     
     function togglePlaneExceptionDetails(shouldShow) {
-        document.getElementById('planeExceptionDetails').classList.toggle('hidden', !shouldShow);
+        document.getElementById('planeExceptionDetails').classList.toggle('hidden',!shouldShow);
     }
 
     function addReceipt() {
@@ -160,7 +160,7 @@
         resultDiv.innerText = "Checking...";
         try {
             const response = await fetch(`${SCRIPT_URL}?ref=${encodeURIComponent(ref)}`);
-            const data = await response.json(); // Expect a JSON response
+            const data = await response.json();
             resultDiv.innerText = `Status for ${ref}: ${data.message}`;
         } catch (error) {
             resultDiv.innerText = "Could not connect to server to check status.";
