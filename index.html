@@ -12,19 +12,16 @@
     label { display: block; margin-top: 1rem; font-weight: bold; color: #555; }
     input, select, textarea { width: 100%; padding: 0.75rem; margin-top: 0.3rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
     button { background-color: #3498db; color: white; padding: 0.75rem 1.5rem; margin-top: 1rem; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; transition: background-color 0.3s; }
-    button:hover { background-color: #2980b9; }
-    button:disabled { background-color: #a9a9a9; cursor: not-allowed; }
-    .radio-group label { display: inline-block; margin-right: 1rem; font-weight: normal; }
-    .radio-group input { width: auto; margin-right: 0.5rem; }
+    .meal-participants { border-top: 1px dashed #ccc; margin-top: 1rem; padding-top: 1rem; }
+    .pp-warning { color: #e74c3c; font-weight: bold; margin-top: 0.5rem; }
     #referenceNumber { margin-top: 1rem; font-weight: bold; white-space: pre-line; padding: 1rem; border-radius: 4px; text-align: center; }
     #progressContainer { width: 100%; background-color: #e0e0e0; border-radius: 4px; margin-top: 1rem; overflow: hidden; }
-    #progressBar { width: 0%; height: 24px; background-color: #3498db; border-radius: 4px; text-align: center; color: white; line-height: 24px; transition: width 0.4s ease; background-image: linear-gradient(45deg, rgba(255,255,255,.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.15) 50%, rgba(255,255,255,.15) 75%, transparent 75%, transparent); background-size: 40px 40px; animation: progress-bar-stripes 2s linear infinite; }
-    @keyframes progress-bar-stripes { from { background-position: 40px 0; } to { background-position: 0 0; } }
+    #progressBar { width: 0%; height: 24px; background-color: #3498db; border-radius: 4px; text-align: center; color: white; line-height: 24px; transition: width 0.4s ease; }
   </style>
 </head>
 <body>
   <h1>Reimbursement Portal</h1>
-
+  
   <div id="form">
     <h2>Submit New Reimbursement Request</h2>
     <form id="reimbursementForm">
@@ -59,27 +56,6 @@
         <button type="button" onclick="addReceipt()">Add Receipt</button>
       </div>
       
-      <div id="planeReasonSection" class="form-section hidden">
-        <h3>Travel Policy Compliance (for air travel)</h3>
-        <p>Please select the option that best describes your situation:</p>
-        <div class="radio-group">
-            <input type="radio" name="planeReason" value="Train Taken" onclick="togglePlaneExceptionDetails(false)"><label>I did not take a plane, or my travel was outside Europe.</label><br>
-            <input type="radio" name="planeReason" value="Train > 7h" onclick="togglePlaneExceptionDetails(false)"><label>I took a plane as the travel by train takes more than 7 hours.</label><br>
-            <input type="radio" name="planeReason" value="Exception" onclick="togglePlaneExceptionDetails(true)"><label>I took a plane in Europe for a trip of less than 7 hours due to an exception:</label><br>
-        </div>
-        <div id="planeExceptionDetails" class="hidden" style="padding-left: 2rem; margin-top: 1rem;">
-            <p>Please specify the exception:</p>
-            <div class="radio-group">
-                <input type="radio" name="planeException" value="Health"><label>Health impairments</label><br>
-                <input type="radio" name="planeException" value="Care Responsibilities"><label>Reconciling care responsibilities and work</label><br>
-                <input type="radio" name="planeException" value="Safety"><label>Safety considerations</label><br>
-                <input type="radio" name="planeException" value="Constraints"><label>Teaching and/or administrative constraints</label><br>
-                <input type="radio" name="planeException" value="Force Majeure"><label>Cases of force majeure</label><br>
-                <input type="radio" name="planeException" value="PhD Student Price"><label>For PhD students only: significant price differences</label><br>
-            </div>
-        </div>
-      </div>
-
       <div id="submitSection" class="hidden">
         <br><button type="submit">Submit</button>
         <div id="progressContainer" class="hidden"><div id="progressBar"></div></div>
@@ -89,11 +65,10 @@
   </div>
 
   <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxV3df9lbR6ziDPT04gCszdanmKgW2S05yeih6N4vAzbshm9qwTNnynAY_y8JaTscfV6A/exec";
-    
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzimaL8zfTDCPUXC1mpU0og_k9WPiH9zhZgcchu87OiqO1vwpnxOl0RJz_Hxj5Q_nJ0g/exec";
     let receiptIndex = 0;
     const maxReceipts = 16;
-    const { PDFDocument } = PDFLib;
+    const { PDFDocument, rgb, StandardFonts } = PDFLib;
 
     function handleFormDisplay() {
       const status = document.getElementById('employeeStatus').value;
@@ -113,27 +88,84 @@
       }
     }
     
-    function checkTravelStatus() {
-        const allTypeSelects = document.querySelectorAll('select[name^="type"]');
-        let travelSelected = false;
-        allTypeSelects.forEach(select => { if (select.value === 'Travel') travelSelected = true; });
-        document.getElementById('planeReasonSection').classList.toggle('hidden',!travelSelected);
-    }
-    
-    function togglePlaneExceptionDetails(shouldShow) {
-        document.getElementById('planeExceptionDetails').classList.toggle('hidden',!shouldShow);
-    }
-
     function addReceipt() {
       if (receiptIndex >= maxReceipts) {
-        alert(`You cannot add more than ${maxReceipts} receipts.`);
+        alert(`Maximum of ${maxReceipts} receipts allowed.`);
         return;
       }
+      const r_index = receiptIndex;
       const container = document.createElement('div');
       container.classList.add('receipt-entry');
-      container.innerHTML = `<h4>Receipt ${receiptIndex + 1}</h4><label>Upload Receipt PDF</label><input type="file" name="receiptFile${receiptIndex}" accept=".pdf" required><label>Date</label><input type="date" name="date${receiptIndex}" required><label>Expense Type</label><select name="type${receiptIndex}" onchange="checkTravelStatus()" required><option value="">Select a type</option><option value="Travel">Travel</option><option value="Accommodation">Accommodation</option><option value="Meals">Meals</option><option value="Supplies">Supplies</option><option value="Honorarium">Honorarium</option><option value="Other">Other</option></select><label>Currency</label><input type="text" name="currency${receiptIndex}" placeholder="e.g., CHF" required><label>Amount</label><input type="number" name="amount${receiptIndex}" step="0.01" required>`;
+      container.id = `receipt-entry-${r_index}`;
+      container.innerHTML = `
+        <h4>Receipt ${r_index + 1}</h4>
+        <label>Upload Receipt PDF</label><input type="file" name="receiptFile${r_index}" accept=".pdf" required>
+        <label>Date</label><input type="date" name="date${r_index}" required>
+        <label>Expense Type</label>
+        <select name="type${r_index}" onchange="handleExpenseTypeChange(${r_index})" required>
+          <option value="">Select a type</option><option value="Travel">Travel</option><option value="Accommodation">Accommodation</option><option value="Meals">Meals</option><option value="Supplies">Supplies</option><option value="Honorarium">Honorarium</option><option value="Other">Other</option>
+        </select>
+        <div id="meal-participants-${r_index}" class="meal-participants hidden"></div>
+        <label>Currency</label><input type="text" name="currency${r_index}" placeholder="e.g., CHF" required>
+        <label>Amount</label><input type="number" name="amount${r_index}" step="0.01" oninput="calculateMealsAverage(${r_index})" required>
+        <div id="pp-warning-${r_index}" class="pp-warning"></div>
+      `;
       document.getElementById('receipts').appendChild(container);
       receiptIndex++;
+    }
+
+    function handleExpenseTypeChange(index) {
+      const expenseType = document.querySelector(`select[name="type${index}"]`).value;
+      const mealSection = document.getElementById(`meal-participants-${index}`);
+      if (expenseType === 'Meals') {
+        mealSection.classList.remove('hidden');
+        mealSection.innerHTML = `
+          <label>Number of Participants</label>
+          <input type="number" name="participants_count${index}" min="1" oninput="generateParticipantFields(${index})">
+          <div id="participant-names-${index}"></div>
+        `;
+      } else {
+        mealSection.classList.add('hidden');
+        mealSection.innerHTML = '';
+      }
+      calculateMealsAverage(index);
+    }
+
+    function generateParticipantFields(index) {
+      const count = parseInt(document.querySelector(`input[name="participants_count${index}"]`).value, 10);
+      const namesContainer = document.getElementById(`participant-names-${index}`);
+      namesContainer.innerHTML = '';
+      if (count > 0) {
+        let fieldsHTML = '<label>Participant Names</label>';
+        for (let i = 0; i < count; i++) {
+          fieldsHTML += `<input type="text" name="participant_${index}_name_${i}" placeholder="Participant ${i+1}" required>`;
+        }
+        namesContainer.innerHTML = fieldsHTML;
+      }
+      calculateMealsAverage(index);
+    }
+
+    function calculateMealsAverage(index) {
+      const warningDiv = document.getElementById(`pp-warning-${index}`);
+      const expenseType = document.querySelector(`select[name="type${index}"]`).value;
+      if (expenseType !== 'Meals') {
+        warningDiv.innerText = '';
+        return;
+      }
+      const amountInput = document.querySelector(`input[name="amount${index}"]`);
+      const participantsInput = document.querySelector(`input[name="participants_count${index}"]`);
+      if (!amountInput || !participantsInput) return;
+      const amount = parseFloat(amountInput.value);
+      const participants = parseInt(participantsInput.value, 10);
+      if (amount > 0 && participants > 0) {
+        const average = amount / participants;
+        warningDiv.innerText = `Per-person average: ${average.toFixed(2)}`;
+        if (average > 60) {
+          warningDiv.innerText += ` (Warning: over the CHF 60 limit)`;
+        }
+      } else {
+        warningDiv.innerText = '';
+      }
     }
 
     function updateProgress(percent, message) {
@@ -147,7 +179,7 @@
       for (let i = 0; i < len; i++) { binary += String.fromCharCode(bytes[i]); }
       return window.btoa(binary);
     }
-
+    
     document.getElementById('reimbursementForm').addEventListener('submit', async function (e) {
       e.preventDefault();
       const form = e.target;
@@ -168,8 +200,44 @@
       }
       
       try {
-        updateProgress(10, 'Merging PDFs...');
+        updateProgress(10, 'Processing receipts...');
         const mergedPdf = await PDFDocument.create();
+        const font = await mergedPdf.embedFont(StandardFonts.Helvetica);
+
+        let hasMealExpenses = false;
+        const allParticipants = [];
+        receiptEntries.forEach((entry, index) => {
+          const expenseType = entry.querySelector(`select[name="type${index}"]`).value;
+          if (expenseType === 'Meals') {
+            hasMealExpenses = true;
+            const participantCount = parseInt(entry.querySelector(`input[name="participants_count${index}"]`).value, 10) || 0;
+            for (let i = 0; i < participantCount; i++) {
+              const nameInput = entry.querySelector(`input[name="participant_${index}_name_${i}"]`);
+              if (nameInput && nameInput.value) {
+                allParticipants.push(nameInput.value);
+              }
+            }
+          }
+        });
+
+        if (hasMealExpenses) {
+          updateProgress(20, 'Generating participants page...');
+          let participantsPage = mergedPdf.addPage();
+          const { width, height } = participantsPage.getSize();
+          let y = height - 70;
+          participantsPage.drawText('Meal Participants', { x: 50, y: y, font, size: 24, color: rgb(0, 0, 0) });
+          y -= 40;
+          allParticipants.forEach(name => {
+            if (y < 50) {
+              participantsPage = mergedPdf.addPage();
+              y = height - 70;
+            }
+            participantsPage.drawText(`- ${name}`, { x: 70, y: y, font, size: 12, color: rgb(0, 0, 0) });
+            y -= 20;
+          });
+        }
+
+        updateProgress(40, 'Merging uploaded PDFs...');
         for (const entry of receiptEntries) {
           const fileInput = entry.querySelector('input[type="file"]');
           if (fileInput && fileInput.files.length > 0) {
@@ -181,7 +249,7 @@
           }
         }
         
-        updateProgress(70, 'Preparing data...');
+        updateProgress(70, 'Preparing data for submission...');
         const mergedPdfBytes = await mergedPdf.save();
         const mergedPdfBase64 = uint8ArrayToBase64(mergedPdfBytes);
         const data = new URLSearchParams();
@@ -196,31 +264,22 @@
         data.append("fileMimeType", "application/pdf");
         
         updateProgress(90, 'Sending...');
-        
-        // --- THIS IS THE KEY CHANGE ---
-        // We send the data but don't wait for a response.
-        // The '.catch' will only trigger for immediate errors, like no internet.
         fetch(SCRIPT_URL, { method: "POST", body: data, mode: 'no-cors' }).catch(err => {
             console.error("Fetch failed to send:", err);
-            // Re-enable the form if the data literally cannot be sent
             submitButton.disabled = false;
             progressContainer.classList.add('hidden');
             referenceBox.innerText = '❌ Submission failed. Please check your internet connection and try again.';
         });
         
-        // --- Immediately show the success message ---
         updateProgress(100, '');
         progressContainer.classList.add('hidden');
         referenceBox.innerHTML = `✅ Your request has been sent successfully!<br><br><strong>PLEASE SAVE YOUR REFERENCE NUMBER:</strong><br><span style="font-size: 1.2em; background-color: #d4edda; padding: 5px 10px; border-radius: 4px;">${ref}</span><br><br>You will receive a confirmation email once it has been processed.`;
         
-        // Reset the form after a brief delay.
         setTimeout(() => {
             form.reset();
             document.getElementById('receipts').innerHTML = '';
             receiptIndex = 0;
             handleFormDisplay();
-            checkTravelStatus();
-            submitButton.disabled = false;
         }, 500);
 
       } catch (error) {
