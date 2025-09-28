@@ -24,223 +24,65 @@
 </head>
 <body>
   <h1>Reimbursement Portal</h1>
+  <form id="reimbursementForm">
+    <!-- simplified version just for demonstration -->
+    <label>Full Name</label>
+    <input type="text" name="fullName" required>
 
-  <div id="form">
-    <h2>Submit New Reimbursement Request</h2>
-    <form id="reimbursementForm">
-      <div class="form-section">
-        <label for="employeeStatus">Are you employed by the institute?</label>
-        <select id="employeeStatus" name="employeeStatus" required onchange="handleFormDisplay()">
-          <option value="" disabled selected>Please select an option</option>
-          <option value="yes">Yes (Internal Reimbursement)</option>
-          <option value="no">No (External Reimbursement)</option>
-        </select>
-      </div>
+    <label>Email</label>
+    <input type="email" name="email" required>
 
-      <div id="commonInfoSection" class="form-section hidden">
-        <label>Full Name</label><input type="text" name="fullName" required>
-        <label>Email Address</label><input type="email" name="email" required>
-        <label>Project Lead or Project Name</label><input list="projectNumbers" name="project" required><datalist id="projectNumbers"><option value="Christine LUTRINGER – AHCD 2025 – P0189"><option value="Vincent CHETAIL – NCCR / Migration Governance – S2334"></datalist>
-        <label>Reason for Reimbursement</label><textarea name="reimbursementReason" required></textarea>
-        <label>Your Address</label><textarea name="address"></textarea>
-      </div>
+    <label>IBAN</label>
+    <input type="text" name="iban" required>
 
-      <div id="bankDetailsSection" class="form-section hidden">
-        <h3>Bank Details</h3>
-        <label>IBAN</label><input type="text" name="iban">
-        <label>Bank Account Number (non-IBAN)</label><input type="text" name="accountNumber">
-        <label>Bank Code</label><input type="text" name="bankCode">
-        <label>Bank Name</label><input type="text" name="bankName">
-      </div>
-
-      <div id="receiptsSection" class="hidden">
-        <h3>Receipts (Max 16)</h3>
-        <div id="receipts"></div>
-        <button type="button" onclick="addReceipt()">Add Receipt</button>
-      </div>
-      
-      <div id="planeReasonSection" class="form-section hidden">
-        <h3>Travel Policy Compliance (for air travel)</h3>
-        <p>Please select the option that best describes your situation:</p>
-        <div class="radio-group">
-            <input type="radio" name="planeReason" value="Train Taken" onclick="togglePlaneExceptionDetails(false)"><label>I did not take a plane, or my travel was outside Europe.</label><br>
-            <input type="radio" name="planeReason" value="Train > 7h" onclick="togglePlaneExceptionDetails(false)"><label>I took a plane as the travel by train takes more than 7 hours.</label><br>
-            <input type="radio" name="planeReason" value="Exception" onclick="togglePlaneExceptionDetails(true)"><label>I took a plane in Europe for a trip of less than 7 hours due to an exception:</label><br>
-        </div>
-        <div id="planeExceptionDetails" class="hidden" style="padding-left: 2rem; margin-top: 1rem;">
-            <p>Please specify the exception:</p>
-            <div class="radio-group">
-                <input type="radio" name="planeException" value="Health"><label>Health impairments</label><br>
-                <input type="radio" name="planeException" value="Care Responsibilities"><label>Reconciling care responsibilities and work</label><br>
-                <input type="radio" name="planeException" value="Safety"><label>Safety considerations</label><br>
-                <input type="radio" name="planeException" value="Constraints"><label>Teaching and/or administrative constraints</label><br>
-                <input type="radio" name="planeException" value="Force Majeure"><label>Cases of force majeure</label><br>
-                <input type="radio" name="planeException" value="PhD Student Price"><label>For PhD students only: significant price differences</label><br>
-            </div>
-        </div>
-      </div>
-
-      <div id="submitSection" class="hidden">
-        <br><button type="submit">Submit</button>
-        <div id="progressContainer" class="hidden"><div id="progressBar"></div></div>
-        <div id="referenceNumber"></div>
-      </div>
-    </form>
-  </div>
+    <button type="submit">Submit</button>
+  </form>
+  <div id="progressContainer" class="hidden"><div id="progressBar"></div></div>
+  <div id="referenceNumber"></div>
 
   <script>
-    // --- URL UPDATED WITH YOUR LATEST DEPLOYMENT ---
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxV3df9lbR6ziDPT04gCszdanmKgW2S05yeih6N4vAzbshm9qwTNnynAY_y8JaTscfV6A/exec";
-    
-    let receiptIndex = 0;
-    const maxReceipts = 16;
-    const { PDFDocument } = PDFLib;
-
-    function handleFormDisplay() {
-      const status = document.getElementById('employeeStatus').value;
-      const commonInfo = document.getElementById('commonInfoSection');
-      const bankSection = document.getElementById('bankDetailsSection');
-      const receiptsSection = document.getElementById('receiptsSection');
-      const submitSection = document.getElementById('submitSection');
-      if (status) {
-        commonInfo.classList.remove('hidden');
-        receiptsSection.classList.remove('hidden');
-        submitSection.classList.remove('hidden');
-        if (status === 'no') {
-          bankSection.classList.remove('hidden');
-        } else {
-          bankSection.classList.add('hidden');
-        }
-      }
-    }
-    
-    function checkTravelStatus() {
-        const allTypeSelects = document.querySelectorAll('select[name^="type"]');
-        let travelSelected = false;
-        allTypeSelects.forEach(select => { if (select.value === 'Travel') travelSelected = true; });
-        document.getElementById('planeReasonSection').classList.toggle('hidden',!travelSelected);
-    }
-    
-    function togglePlaneExceptionDetails(shouldShow) {
-        document.getElementById('planeExceptionDetails').classList.toggle('hidden',!shouldShow);
-    }
-
-    function addReceipt() {
-      if (receiptIndex >= maxReceipts) {
-        alert(`You cannot add more than ${maxReceipts} receipts.`);
-        return;
-      }
-      const container = document.createElement('div');
-      container.classList.add('receipt-entry');
-      container.innerHTML = `<h4>Receipt ${receiptIndex + 1}</h4><label>Upload Receipt PDF</label><input type="file" name="receiptFile${receiptIndex}" accept=".pdf" required><label>Date</label><input type="date" name="date${receiptIndex}" required><label>Expense Type</label><select name="type${receiptIndex}" onchange="checkTravelStatus()" required><option value="">Select a type</option><option value="Travel">Travel</option><option value="Accommodation">Accommodation</option><option value="Meals">Meals</option><option value="Supplies">Supplies</option><option value="Honorarium">Honorarium</option><option value="Other">Other</option></select><label>Currency</label><input type="text" name="currency${receiptIndex}" placeholder="e.g., CHF" required><label>Amount</label><input type="number" name="amount${receiptIndex}" step="0.01" required>`;
-      document.getElementById('receipts').appendChild(container);
-      receiptIndex++;
-    }
-
-    function updateProgress(percent, message) {
-        document.getElementById('progressBar').style.width = percent + '%';
-        document.getElementById('referenceNumber').innerText = message;
-    }
-
-    /*
-    async function checkStatus() {
-        const ref = document.getElementById('statusRef').value;
-        const resultDiv = document.getElementById('statusResult');
-        if (!ref) {
-            resultDiv.innerText = "Please enter a reference number.";
-            return;
-        }
-        resultDiv.innerText = "Checking...";
-        try {
-            const response = await fetch(`${SCRIPT_URL}?ref=${encodeURIComponent(ref)}`);
-            const data = await response.json();
-            resultDiv.innerText = `Status for ${ref}: ${data.message}`;
-        } catch (error) {
-            resultDiv.innerText = "Could not connect to server to check status.";
-            console.error("Status check error:", error);
-        }
-    }
-    */
-
-    function uint8ArrayToBase64(bytes) {
-      let binary = '';
-      const len = bytes.byteLength;
-      for (let i = 0; i < len; i++) { binary += String.fromCharCode(bytes[i]); }
-      return window.btoa(binary);
-    }
+    const SCRIPT_URL = "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec";
 
     document.getElementById('reimbursementForm').addEventListener('submit', async function (e) {
       e.preventDefault();
-      const form = e.target;
+
       const ref = 'REF' + Date.now();
+      const form = e.target;
+      const data = new FormData(form);
+      const dataToSend = new URLSearchParams();
+
+      for (const [key, value] of data.entries()) {
+        dataToSend.append(key, value);
+      }
+      dataToSend.append("reference", ref);
+
       const referenceBox = document.getElementById('referenceNumber');
       const progressContainer = document.getElementById('progressContainer');
-      const submitButton = form.querySelector('button[type="submit"]');
-      submitButton.disabled = true;
       progressContainer.classList.remove('hidden');
-      updateProgress(0, 'Starting...');
+      document.getElementById('progressBar').style.width = '50%';
+      referenceBox.innerText = 'Submitting...';
 
-      const receiptEntries = document.querySelectorAll('.receipt-entry');
-      if (receiptEntries.length === 0) {
-        alert("Please add at least one receipt.");
-        submitButton.disabled = false;
-        progressContainer.classList.add('hidden');
-        return;
-      }
-      
-      updateProgress(10, 'Merging PDFs...');
-      const mergedPdf = await PDFDocument.create();
       try {
-        for (const entry of receiptEntries) {
-          const fileInput = entry.querySelector('input[type="file"]');
-          if (fileInput && fileInput.files.length > 0) {
-            const file = fileInput.files[0];
-            const fileBytes = await file.arrayBuffer();
-            const pdf = await PDFDocument.load(fileBytes);
-            const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-            copiedPages.forEach((page) => mergedPdf.addPage(page));
-          }
-        }
-      } catch (error) {
-        updateProgress(100, ''); progressContainer.classList.add('hidden'); referenceBox.innerText = '❌ Error merging PDFs. One of the files may be corrupt.'; submitButton.disabled = false; return;
-      }
-      
-      updateProgress(70, 'Preparing upload...');
-      const mergedPdfBytes = await mergedPdf.save();
-      const mergedPdfBase64 = uint8ArrayToBase64(mergedPdfBytes);
-      const data = new URLSearchParams();
-      const formData = new FormData(form);
-      for (const [key, value] of formData.entries()) {
-        if (typeof value !== 'object') data.append(key, value);
-      }
-      data.append("reference", ref);
-      data.append("receiptCount", receiptIndex);
-      data.append("fileBase64", mergedPdfBase64);
-      data.append("fileName", `Consolidated_Receipts_${ref}.pdf`);
-      data.append("fileMimeType", "application/pdf");
-      
-      updateProgress(90, 'Uploading...');
-      fetch(SCRIPT_URL, {
-        method: "POST", body: data, redirect: 'follow'
-      }).then(response => response.text()).then(result => {
-        updateProgress(100, '');
-        progressContainer.classList.add('hidden');
-        if (result.includes("❌")) {
-          referenceBox.innerHTML = result;
-        } else {
-          referenceBox.innerHTML = `✅ Request submitted successfully!<br><br><strong>PLEASE SAVE YOUR REFERENCE NUMBER:</strong><br><span style="font-size: 1.2em; background-color: #d4edda; padding: 5px 10px; border-radius: 4px;">${ref}</span><br><br>You can use this number to check the reimbursement status later.`;
+        const response = await fetch(SCRIPT_URL, {
+          method: "POST",
+          body: dataToSend
+        });
+
+        if (response.ok) {
+          document.getElementById('progressBar').style.width = '100%';
+          referenceBox.innerHTML = `✅ Submitted successfully!\nReference: ${ref}`;
           form.reset();
-          document.getElementById('receipts').innerHTML = '';
-          receiptIndex = 0;
-          handleFormDisplay();
-          checkTravelStatus();
+        } else {
+          referenceBox.innerText = '❌ Submission failed. Please try again.';
         }
-      }).catch(error => {
-        referenceBox.innerText = '❌ A network error occurred. Please check your connection and try again.';
+      } catch (err) {
+        referenceBox.innerText = '❌ Network error. Please try again.';
+      }
+
+      setTimeout(() => {
         progressContainer.classList.add('hidden');
-      }).finally(() => {
-        submitButton.disabled = false;
-      });
+        document.getElementById('progressBar').style.width = '0%';
+      }, 3000);
     });
   </script>
 </body>
