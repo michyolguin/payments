@@ -12,6 +12,8 @@
     label { display: block; margin-top: 1rem; font-weight: bold; color: #555; }
     input, select, textarea { width: 100%; padding: 0.75rem; margin-top: 0.3rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
     button { background-color: #3498db; color: white; padding: 0.75rem 1.5rem; margin-top: 1rem; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; transition: background-color 0.3s; }
+    button:hover { background-color: #2980b9; }
+    button:disabled { background-color: #a9a9a9; cursor: not-allowed; }
     .meal-participants { border-top: 1px dashed #ccc; margin-top: 1rem; padding-top: 1rem; }
     .pp-message { margin-top: 0.5rem; font-weight: bold; height: 1em; }
     .pp-ok { color: #2ecc71; } /* Green */
@@ -54,7 +56,7 @@
         <label>Bank Code</label><input type="text" name="bankCode">
         <label>Bank Name</label><input type="text" name="bankName">
       </div>
-      
+
       <div id="receiptsSection" class="hidden">
         <h3>Receipts (Max 16)</h3>
         <div id="receipts"></div>
@@ -70,7 +72,7 @@
   </div>
 
   <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzimaL8zfTDCPUXC1mpU0og_k9WPiH9zhZgcchu87OiqO1vwpnxOl0RJz_Hxj5Q_nJ0g/exec"; // Replace with your current URL
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzimaL8zfTDCPUXC1mpU0og_k9WPiH9zhZgcchu87OiqO1vwpnxOl0RJz_Hxj5Q_nJ0g/exec";
     let receiptIndex = 0;
     const maxReceipts = 16;
     const { PDFDocument, rgb, StandardFonts } = PDFLib;
@@ -158,7 +160,7 @@
       const messageDiv = document.getElementById(`pp-message-${index}`);
       const ackBox = document.getElementById(`ack-box-${index}`);
       const expenseType = document.querySelector(`select[name="type${index}"]`).value;
-
+      
       if (expenseType !== 'Meals') {
         messageDiv.className = 'pp-message';
         messageDiv.innerText = '';
@@ -178,11 +180,11 @@
         const average = amount / participants;
         messageDiv.innerText = `Per-person average: ${average.toFixed(2)}`;
         if (average > 60) {
-          messageDiv.className = 'pp-message pp-warning';
+          messageDiv.className = 'pp-message pp-warning'; // Red
           messageDiv.innerText += ` (Exceeds the per-person regulation limit)`;
           ackBox.classList.remove('hidden');
         } else {
-          messageDiv.className = 'pp-message pp-ok';
+          messageDiv.className = 'pp-message pp-ok'; // Green
           ackBox.classList.add('hidden');
         }
       } else {
@@ -191,8 +193,124 @@
       }
     }
 
-    // All other JavaScript functions (updateProgress, uint8ArrayToBase64, form submission) remain the same
-    // ...
+    function updateProgress(percent, message) {
+        document.getElementById('progressBar').style.width = percent + '%';
+        document.getElementById('referenceNumber').innerText = message;
+    }
+
+    function uint8ArrayToBase64(bytes) {
+      let binary = '';
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i++) { binary += String.fromCharCode(bytes[i]); }
+      return window.btoa(binary);
+    }
+    
+    document.getElementById('reimbursementForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const form = e.target;
+      const ref = 'REF' + Date.now();
+      const referenceBox = document.getElementById('referenceNumber');
+      const progressContainer = document.getElementById('progressContainer');
+      const submitButton = form.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      progressContainer.classList.remove('hidden');
+      updateProgress(0, 'Starting...');
+
+      const receiptEntries = document.querySelectorAll('.receipt-entry');
+      if (receiptEntries.length === 0) {
+        alert("Please add at least one receipt.");
+        submitButton.disabled = false; progressContainer.classList.add('hidden');
+        return;
+      }
+      
+      try {
+        updateProgress(10, 'Processing & generating participant page...');
+        const mergedPdf = await PDFDocument.create();
+        const font = await mergedPdf.embedFont(StandardFonts.Helvetica);
+        let hasMealExpenses = false;
+        const allParticipants = [];
+        receiptEntries.forEach((entry, index) => {
+          const expenseType = entry.querySelector(`select[name="type${index}"]`).value;
+          if (expenseType === 'Meals') {
+            hasMealExpenses = true;
+            const participantCount = parseInt(entry.querySelector(`input[name="participants_count${index}"]`).value, 10) || 0;
+            for (let i = 0; i < participantCount; i++) {
+              const nameInput = entry.querySelector(`input[name="participant_${index}_name_${i}"]`);
+              if (nameInput && nameInput.value) {
+                allParticipants.push(nameInput.value);
+              }
+            }
+          }
+        });
+
+        if (hasMealExpenses) {
+          let participantsPage = mergedPdf.addPage();
+          const { height } = participantsPage.getSize();
+          let y = height - 70;
+          participantsPage.drawText('Meal Participants', { x: 50, y: y, font, size: 24, color: rgb(0, 0, 0) });
+          y -= 40;
+          allParticipants.forEach(name => {
+            if (y < 50) {
+              participantsPage = mergedPdf.addPage();
+              y = height - 70;
+            }
+            participantsPage.drawText(`- ${name}`, { x: 70, y: y, font, size: 12, color: rgb(0, 0, 0) });
+            y -= 20;
+          });
+        }
+
+        updateProgress(40, 'Merging uploaded PDFs...');
+        for (const entry of receiptEntries) {
+          const fileInput = entry.querySelector('input[type="file"]');
+          if (fileInput && fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            const fileBytes = await file.arrayBuffer();
+            const pdf = await PDFDocument.load(fileBytes);
+            const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+            copiedPages.forEach((page) => mergedPdf.addPage(page));
+          }
+        }
+        
+        updateProgress(70, 'Preparing data for submission...');
+        const mergedPdfBytes = await mergedPdf.save();
+        const mergedPdfBase64 = uint8ArrayToBase64(mergedPdfBytes);
+        const data = new URLSearchParams();
+        const formData = new FormData(form);
+        for (const [key, value] of formData.entries()) {
+          if (typeof value !== 'object') data.append(key, value);
+        }
+        data.append("reference", ref);
+        data.append("receiptCount", receiptIndex);
+        data.append("fileBase64", mergedPdfBase64);
+        data.append("fileName", `Consolidated_Receipts_${ref}.pdf`);
+        data.append("fileMimeType", "application/pdf");
+        
+        updateProgress(90, 'Sending...');
+        fetch(SCRIPT_URL, { method: "POST", body: data, mode: 'no-cors' }).catch(err => {
+            console.error("Fetch failed to send:", err);
+            submitButton.disabled = false; progressContainer.classList.add('hidden');
+            referenceBox.innerText = '❌ Submission failed. Please check your internet connection and try again.';
+        });
+        
+        updateProgress(100, '');
+        progressContainer.classList.add('hidden');
+        referenceBox.innerHTML = `✅ Your request has been sent successfully!<br><br><strong>PLEASE SAVE YOUR REFERENCE NUMBER:</strong><br><span style="font-size: 1.2em; background-color: #d4edda; padding: 5px 10px; border-radius: 4px;">${ref}</span><br><br>You will receive a confirmation email once it has been processed.`;
+        
+        setTimeout(() => {
+            form.reset();
+            document.getElementById('receipts').innerHTML = '';
+            receiptIndex = 0;
+            handleFormDisplay();
+        }, 500);
+
+      } catch (error) {
+          console.error("An error occurred before sending:", error);
+          updateProgress(100, ''); 
+          progressContainer.classList.add('hidden'); 
+          referenceBox.innerText = '❌ An error occurred while preparing your files. Please try again.'; 
+          submitButton.disabled = false;
+      }
+    });
   </script>
 </body>
 </html>
