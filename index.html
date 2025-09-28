@@ -14,6 +14,8 @@
     input, select, textarea { width: 100%; padding: 0.75rem; margin-top: 0.3rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
     input:disabled { background-color: #f0f0f0; cursor: not-allowed; }
     button { background-color: #3498db; color: white; padding: 0.75rem 1.5rem; margin-top: 1rem; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; transition: background-color 0.3s; }
+    button:hover { background-color: #2980b9; }
+    button:disabled { background-color: #a9a9a9; cursor: not-allowed; }
     .validation-message { font-size: 0.9em; margin-top: 0.3rem; height: 1em; }
     .invalid { color: #e74c3c; }
     .valid { color: #2ecc71; }
@@ -21,6 +23,9 @@
     .pp-message { margin-top: 0.5rem; font-weight: bold; height: 1em; }
     .pp-ok { color: #2ecc71; }
     .pp-warning { color: #e74c3c; }
+    .ack-box { margin-top: 1rem; padding: 0.75rem; background-color: #fffbe6; border: 1px solid #ffeeba; border-radius: 4px; }
+    .ack-box label { font-weight: normal; font-size: 0.9em; }
+    .ack-box input { width: auto; margin-right: 0.5rem; }
     #referenceNumber { margin-top: 1rem; font-weight: bold; white-space: pre-line; padding: 1rem; border-radius: 4px; text-align: center; }
     #progressContainer { width: 100%; background-color: #e0e0e0; border-radius: 4px; margin-top: 1rem; overflow: hidden; }
     #progressBar { width: 0%; height: 24px; background-color: #3498db; border-radius: 4px; text-align: center; color: white; line-height: 24px; transition: width 0.4s ease; }
@@ -123,6 +128,10 @@
         <label>Currency</label><input type="text" name="currency${r_index}" placeholder="e.g., CHF" required>
         <label>Amount</label><input type="number" name="amount${r_index}" step="0.01" oninput="calculateMealsAverage(${r_index})" required>
         <div id="pp-message-${r_index}" class="pp-message"></div>
+        <div id="ack-box-${r_index}" class="ack-box hidden">
+          <input type="checkbox" id="ack-checkbox-${r_index}" name="ack_limit_${r_index}" required>
+          <label for="ack-checkbox-${r_index}">I acknowledge that the reimbursement for this meal will be capped at the Graduate Institute's maximum per-person rate.</label>
+        </div>
       `;
       document.getElementById('receipts').appendChild(container);
       receiptIndex++;
@@ -161,44 +170,41 @@
 
     function calculateMealsAverage(index) {
       const messageDiv = document.getElementById(`pp-message-${index}`);
+      const ackBox = document.getElementById(`ack-box-${index}`);
       const expenseType = document.querySelector(`select[name="type${index}"]`).value;
+      
       if (expenseType !== 'Meals') {
         messageDiv.className = 'pp-message';
         messageDiv.innerText = '';
+        ackBox.classList.add('hidden');
         return;
       }
+
       const amountInput = document.querySelector(`input[name="amount${index}"]`);
       const participantsInput = document.querySelector(`input[name="participants_count${index}"]`);
-      if (!amountInput || !participantsInput) return;
+      
+      if (!amountInput || !participantsInput) { ackBox.classList.add('hidden'); return; }
+      
       const amount = parseFloat(amountInput.value);
       const participants = parseInt(participantsInput.value, 10);
+
       if (amount > 0 && participants > 0) {
         const average = amount / participants;
         messageDiv.innerText = `Per-person average: ${average.toFixed(2)}`;
         if (average > 60) {
           messageDiv.className = 'pp-message pp-warning';
-          messageDiv.innerText += ` (Over the institute regulation limit)`;
+          messageDiv.innerText += ` (Note: This exceeds the institutional regulatory limit.)`;
+          ackBox.classList.remove('hidden');
         } else {
           messageDiv.className = 'pp-message pp-ok';
+          ackBox.classList.add('hidden');
         }
       } else {
         messageDiv.innerText = '';
+        ackBox.classList.add('hidden');
       }
     }
 
-    function updateProgress(percent, message) {
-        document.getElementById('progressBar').style.width = percent + '%';
-        document.getElementById('referenceNumber').innerText = message;
-    }
-
-    function uint8ArrayToBase64(bytes) {
-      let binary = '';
-      const len = bytes.byteLength;
-      for (let i = 0; i < len; i++) { binary += String.fromCharCode(bytes[i]); }
-      return window.btoa(binary);
-    }
-    
-    // --- VALIDATION FUNCTIONS from previous version ---
     function handleIBANInput() {
       const ibanInput = document.getElementById('ibanInput');
       const accountInput = document.getElementById('accountInput');
@@ -227,14 +233,25 @@
       const bankAddressInput = document.getElementById('bankAddressInput');
       const bankAddressValidationDiv = document.getElementById('bankAddressValidation');
       if (bankAddressInput.value && !/\d/.test(bankAddressInput.value)) {
-        bankAddressValidationDiv.innerText = 'Please provide a full address, including a number.';
+        bankAddressValidationDiv.innerText = 'Please ensure a full address, including a number, is provided.';
         bankAddressValidationDiv.className = 'validation-message invalid';
       } else {
         bankAddressValidationDiv.innerText = '';
       }
     }
-    // --- END of validation functions ---
 
+    function updateProgress(percent, message) {
+        document.getElementById('progressBar').style.width = percent + '%';
+        document.getElementById('referenceNumber').innerText = message;
+    }
+
+    function uint8ArrayToBase64(bytes) {
+      let binary = '';
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i++) { binary += String.fromCharCode(bytes[i]); }
+      return window.btoa(binary);
+    }
+    
     document.getElementById('reimbursementForm').addEventListener('submit', async function (e) {
       e.preventDefault();
       const form = e.target;
