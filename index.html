@@ -15,9 +15,6 @@
     input:disabled { background-color: #f0f0f0; cursor: not-allowed; }
     button { background-color: #3498db; color: white; padding: 0.75rem 1.5rem; margin-top: 1rem; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; transition: background-color 0.3s; }
     .validation-message { font-size: 0.9em; margin-top: 0.3rem; height: 1em; }
-    .invalid { color: #e74c3c; }
-    .valid { color: #2ecc71; }
-    .meal-participants { border-top: 1px dashed #ccc; margin-top: 1rem; padding-top: 1rem; }
     .pp-message { margin-top: 0.5rem; font-weight: bold; height: 1em; }
     .pp-ok { color: #2ecc71; }
     .pp-warning { color: #e74c3c; }
@@ -47,9 +44,13 @@
       <div id="commonInfoSection" class="form-section hidden">
         <label>Full Name</label><input type="text" name="fullName" required>
         <label>Email Address</label><input type="email" name="email" required>
+
+        <!-- ADDED: Reason for Reimbursement -->
         <label>Reason for Reimbursement</label>
-<textarea name="reimbursementReason" rows="3" required placeholder="Why are you claiming these expenses?"></textarea>
-        <label>Project Lead or Project Name</label><input list="projectNumbers" name="project" required>
+        <textarea name="reimbursementReason" rows="3" required placeholder="Why are you claiming these expenses?"></textarea>
+
+        <label>Project Lead or Project Name</label>
+        <input list="projectNumbers" name="project" required>
         <datalist id="projectNumbers">
           <option value="Christine LUTRINGER – AHCD 2025 – P0189">
           <option value="Vincent CHETAIL – NCCR / Migration Governance – S2334">
@@ -75,6 +76,25 @@
         <div id="receipts"></div>
         <button type="button" onclick="addReceipt()">Add Receipt</button>
       </div>
+
+      <!-- ADDED: unified Travel block (shown only if any receipt is Travel) -->
+      <div id="travelSection" class="form-section hidden">
+        <h3>Travel declaration (only if you had travel expenses)</h3>
+        <label><input type="radio" name="planeReason" value="Train" checked> I took the train</label>
+        <label><input type="radio" name="planeReason" value="Train>7h"> I took a plane as the travel by train takes more than 7h</label>
+        <label><input type="radio" name="planeReason" value="Exception"> I took a plane in Europe for a travel lasting less than 7 hours, because of the following exception:</label>
+        <div id="travelExceptionBox" class="hidden" style="margin-top:.5rem">
+          <select name="planeException">
+            <option value="">Select an exception…</option>
+            <option>Health impairments of the person travelling</option>
+            <option>Reconciling care responsibilities and work</option>
+            <option>Safety considerations due to particular events</option>
+            <option>Teaching and/or administrative constraints</option>
+            <option>Cases of force majeure</option>
+            <option>For PhD students only: significant price differences</option>
+          </select>
+        </div>
+      </div>
       
       <div id="submitSection" class="hidden">
         <br><button type="submit">Submit</button>
@@ -85,7 +105,7 @@
   </div>
 
   <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzPGOc3Ky7d66VjYLTgaL5uSo8GryXivtVuhdLc4tpc7Cb20lPAR_7LtIny7FrklkducA/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbydSxdoSkqJyHxTrRLbMuLv8QP4PkmiXRPbZGrNCmJKI9zP-kZbaS_1p6I4d4Vssslq5A/exec";
     let receiptIndex = 0;
     const maxReceipts = 16;
     const { PDFDocument, rgb, StandardFonts } = PDFLib;
@@ -139,61 +159,13 @@
           <input type="checkbox" id="ack-checkbox-${r_index}" name="ack_limit_${r_index}">
           <label for="ack-checkbox-${r_index}">I acknowledge that the reimbursement for this meal will be capped at the Graduate Institute's maximum per-person rate.</label>
         </div>
-        <div id="travelSection" class="form-section hidden">
-          <h3>Travel declaration (only if you had travel expenses)</h3>
-          <label><input type="radio" name="planeReason" value="Train" checked> I took the train</label>
-          <label><input type="radio" name="planeReason" value="Train>7h"> I took a plane as the travel by train takes more than 7h</label>
-          <label><input type="radio" name="planeReason" value="Exception"> I took a plane in Europe for a travel lasting less than 7 hours, because of the following exception:</label>
-        
-          <div id="travelExceptionBox" class="hidden" style="margin-top:.5rem">
-            <select name="planeException">
-              <option value="">Select an exception…</option>
-              <option>Health impairments of the person travelling</option>
-              <option>Reconciling care responsibilities and work</option>
-              <option>Safety considerations due to particular events</option>
-              <option>Teaching and/or administrative constraints</option>
-              <option>Cases of force majeure</option>
-              <option>For PhD students only: significant price differences</option>
-            </select>
-          </div>
-        </div>
-        <script>
-  function toggleTravelSection() {
-    // show the travel block iff any receipt type === "Travel"
-    const anyTravel = Array.from(document.querySelectorAll('.receipt-entry')).some((entry, idx) => {
-      const sel = entry.querySelector(`select[name="type${idx}"]`);
-      return sel && sel.value === 'Travel';
-    });
-    const travel = document.getElementById('travelSection');
-    const radios = document.querySelectorAll('input[name="planeReason"]');
-    const exceptionBox = document.getElementById('travelExceptionBox');
-
-    if (anyTravel) {
-      travel.classList.remove('hidden');
-      // keep default radio = Train; show exception selector only if Exception checked
-      const selected = Array.from(radios).find(r => r.checked)?.value || 'Train';
-      exceptionBox.classList.toggle('hidden', selected !== 'Exception');
-    } else {
-      travel.classList.add('hidden');
-    }
-  }
-
-  // show/hide the exception dropdown when “Exception” is selected
-  document.addEventListener('change', (e) => {
-    if (e.target && e.target.name === 'planeReason') {
-      document.getElementById('travelExceptionBox')
-        .classList.toggle('hidden', e.target.value !== 'Exception');
-    }
-  });
-</script>
       `;
       document.getElementById('receipts').appendChild(container);
       receiptIndex++;
+      toggleTravelSection(); // keep the travel block in sync
     }
 
     function handleExpenseTypeChange(index) {
-       calculateMealsAverage(index);
-       toggleTravelSection();   
       const expenseType = document.querySelector(`select[name="type${index}"]`).value;
       const mealSection = document.getElementById(`meal-participants-${index}`);
       if (expenseType === 'Meals') {
@@ -208,6 +180,7 @@
         mealSection.innerHTML = '';
       }
       calculateMealsAverage(index);
+      toggleTravelSection(); // show/hide travel declaration if any Travel
     }
 
     function generateParticipantFields(index) {
@@ -270,6 +243,35 @@
       }
     }
 
+    // ---- Travel block visibility / exception dropdown ----
+    function toggleTravelSection() {
+      const entries = Array.from(document.querySelectorAll('.receipt-entry'));
+      const anyTravel = entries.some((entry, idx) => {
+        const sel = entry.querySelector(`select[name="type${idx}"]`);
+        return sel && sel.value === 'Travel';
+      });
+
+      const travel = document.getElementById('travelSection');
+      const radios = document.querySelectorAll('input[name="planeReason"]');
+      const exceptionBox = document.getElementById('travelExceptionBox');
+
+      if (anyTravel) {
+        travel.classList.remove('hidden');
+        const selected = Array.from(radios).find(r => r.checked)?.value || 'Train';
+        exceptionBox.classList.toggle('hidden', selected !== 'Exception');
+      } else {
+        travel.classList.add('hidden');
+      }
+    }
+
+    document.addEventListener('change', (e) => {
+      if (e.target && e.target.name === 'planeReason') {
+        document.getElementById('travelExceptionBox')
+          .classList.toggle('hidden', e.target.value !== 'Exception');
+      }
+    });
+    // ------------------------------------------------------
+
     function updateProgress(percent, message) {
       const bar = document.getElementById('progressBar');
       const box = document.getElementById('progressContainer');
@@ -308,6 +310,8 @@
         updateProgress(10, 'Processing & generating participant page...');
         const mergedPdf = await PDFDocument.create();
         const font = await mergedPdf.embedFont(StandardFonts.Helvetica);
+
+        // Build participants page (if any Meals)
         let hasMealExpenses = false;
         const allParticipants = [];
         const receiptEntries = document.querySelectorAll('.receipt-entry');
@@ -315,7 +319,7 @@
           const expenseType = entry.querySelector(`select[name="type${index}"]`).value;
           if (expenseType === 'Meals') {
             hasMealExpenses = true;
-            const participantCount = parseInt(entry.querySelector(`input[name="participants_count${index}"]`).value, 10) || 0;
+            const participantCount = parseInt(entry.querySelector(`input[name="participants_count${index}"]`)?.value || '0', 10);
             for (let i = 0; i < participantCount; i++) {
               const nameInput = entry.querySelector(`input[name="participant_${index}_name_${i}"]`);
               if (nameInput && nameInput.value) {
@@ -355,7 +359,7 @@
         
         updateProgress(70, 'Preparing data for submission...');
         const mergedPdfBytes = await mergedPdf.save();
-        const mergedPdfBase64 = uint8ArrayToBase64(mergedPdfBytes); // <-- DEFINE IT
+        const mergedPdfBase64 = uint8ArrayToBase64(mergedPdfBytes);
 
         // Build payload (fire-and-forget)
         const fd = new FormData();
@@ -365,12 +369,12 @@
         }
         fd.append("reference", ref);
         fd.append("receiptCount", receiptIndex);
-        fd.append("fileBase64", mergedPdfBase64);             // raw Base64 (no encodeURIComponent)
+        fd.append("fileBase64", mergedPdfBase64);
         fd.append("fileName", `Consolidated_Receipts_${ref}.pdf`);
         fd.append("fileMimeType", "application/pdf");
         
         updateProgress(90, 'Sending...');
-        fetch(SCRIPT_URL, { method: "POST", body: fd, mode: 'no-cors' }) // opaque but posts fine
+        fetch(SCRIPT_URL, { method: "POST", body: fd, mode: 'no-cors' })
           .catch(err => {
             console.error("Fetch failed to send:", err);
             submitButton.disabled = false; 
@@ -387,6 +391,7 @@
           document.getElementById('receipts').innerHTML = '';
           receiptIndex = 0;
           handleFormDisplay();
+          toggleTravelSection();
         }, 500);
 
       } catch (error) {
