@@ -15,9 +15,6 @@
     input:disabled { background-color: #f0f0f0; cursor: not-allowed; }
     button { background-color: #3498db; color: white; padding: 0.75rem 1.5rem; margin-top: 1rem; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; transition: background-color 0.3s; }
     .validation-message { font-size: 0.9em; margin-top: 0.3rem; height: 1em; }
-    .invalid { color: #e74c3c; }
-    .valid { color: #2ecc71; }
-    .meal-participants { border-top: 1px dashed #ccc; margin-top: 1rem; padding-top: 1rem; }
     .pp-message { margin-top: 0.5rem; font-weight: bold; height: 1em; }
     .pp-ok { color: #2ecc71; }
     .pp-warning { color: #e74c3c; }
@@ -47,7 +44,10 @@
       <div id="commonInfoSection" class="form-section hidden">
         <label>Full Name</label><input type="text" name="fullName" required>
         <label>Email Address</label><input type="email" name="email" required>
-        <label>Project Lead or Project Name</label><input list="projectNumbers" name="project" required>
+        <label>Reason for Reimbursement</label>
+        <textarea name="reimbursementReason" rows="3" required placeholder="Why are you claiming these expenses?"></textarea>
+        <label>Project Lead or Project Name</label>
+        <input list="projectNumbers" name="project" required>
         <datalist id="projectNumbers">
           <option value="Christine LUTRINGER – AHCD 2025 – P0189">
           <option value="Vincent CHETAIL – NCCR / Migration Governance – S2334">
@@ -57,14 +57,14 @@
       <div id="bankDetailsSection" class="form-section hidden">
         <h3>Bank Details</h3>
         <label>IBAN</label>
-        <input type="text" name="iban" id="ibanInput" oninput="handleIBANInput()" placeholder="e.g., CH9300762011623852957">
+        <input type="text" name="iban" id="ibanInput" placeholder="e.g., CH9300762011623852957">
         <div id="ibanValidation" class="validation-message"></div>
         <label>Bank Account Number (non-IBAN)</label>
-        <input type="text" name="accountNumber" id="accountInput" oninput="handleAccountInput()">
+        <input type="text" name="accountNumber" id="accountInput">
         <label>BIC/SWIFT Code</label>
         <input type="text" name="bankCode" pattern="[A-Za-z]{4}[A-Za-z]{2}[A-Za-z0-9]{2}([A-Za-z0-9]{3})?" title="Must be a valid 8 or 11 character BIC/SWIFT code.">
         <label>Bank Name and Address</label>
-        <input type="text" name="bankName" id="bankAddressInput" oninput="validateBankAddress()">
+        <input type="text" name="bankName" id="bankAddressInput">
         <div id="bankAddressValidation" class="validation-message"></div>
       </div>
 
@@ -72,6 +72,25 @@
         <h3>Receipts (Max 16)</h3>
         <div id="receipts"></div>
         <button type="button" onclick="addReceipt()">Add Receipt</button>
+      </div>
+
+      <!-- Travel section (only shows if any receipt type is Travel) -->
+      <div id="travelSection" class="form-section hidden">
+        <h3>Travel declaration (only if you had travel expenses)</h3>
+        <label><input type="radio" name="planeReason" value="Train" checked> I took the train</label>
+        <label><input type="radio" name="planeReason" value="Train>7h"> I took a plane as the travel by train takes more than 7h</label>
+        <label><input type="radio" name="planeReason" value="Exception"> I took a plane in Europe for a travel lasting less than 7 hours, because of the following exception:</label>
+        <div id="travelExceptionBox" class="hidden" style="margin-top:.5rem">
+          <select name="planeException">
+            <option value="">Select an exception…</option>
+            <option>Health impairments of the person travelling</option>
+            <option>Reconciling care responsibilities and work</option>
+            <option>Safety considerations due to particular events</option>
+            <option>Teaching and/or administrative constraints</option>
+            <option>Cases of force majeure</option>
+            <option>For PhD students only: significant price differences</option>
+          </select>
+        </div>
       </div>
       
       <div id="submitSection" class="hidden">
@@ -83,7 +102,9 @@
   </div>
 
   <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwNcXdTJSF10pR4z2uu18Ip9tFtXNC1lk_W5zPKkiP8nQdDuZFz29IFpER3wWXKeEXraA/exec";
+    // Use your currently working deployment:
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzPGOc3Ky7d66VjYLTgaL5uSo8GryXivtVuhdLc4tpc7Cb20lPAR_7LtIny7FrklkducA/exec";
+
     let receiptIndex = 0;
     const maxReceipts = 16;
     const { PDFDocument, rgb, StandardFonts } = PDFLib;
@@ -140,9 +161,12 @@
       `;
       document.getElementById('receipts').appendChild(container);
       receiptIndex++;
+      toggleTravelSection();
     }
 
     function handleExpenseTypeChange(index) {
+      calculateMealsAverage(index);
+      toggleTravelSection();
       const expenseType = document.querySelector(`select[name="type${index}"]`).value;
       const mealSection = document.getElementById(`meal-participants-${index}`);
       if (expenseType === 'Meals') {
@@ -156,7 +180,6 @@
         mealSection.classList.add('hidden');
         mealSection.innerHTML = '';
       }
-      calculateMealsAverage(index);
     }
 
     function generateParticipantFields(index) {
@@ -219,6 +242,33 @@
       }
     }
 
+    function toggleTravelSection() {
+      const entries = Array.from(document.querySelectorAll('.receipt-entry'));
+      const anyTravel = entries.some((entry, idx) => {
+        const sel = entry.querySelector(`select[name="type${idx}"]`);
+        return sel && sel.value === 'Travel';
+      });
+
+      const travel = document.getElementById('travelSection');
+      const radios = document.querySelectorAll('input[name="planeReason"]');
+      const exceptionBox = document.getElementById('travelExceptionBox');
+
+      if (anyTravel) {
+        travel.classList.remove('hidden');
+        const selected = Array.from(radios).find(r => r.checked)?.value || 'Train';
+        exceptionBox.classList.toggle('hidden', selected !== 'Exception');
+      } else {
+        travel.classList.add('hidden');
+      }
+    }
+
+    document.addEventListener('change', (e) => {
+      if (e.target && e.target.name === 'planeReason') {
+        document.getElementById('travelExceptionBox')
+          .classList.toggle('hidden', e.target.value !== 'Exception');
+      }
+    });
+
     function updateProgress(percent, message) {
       const bar = document.getElementById('progressBar');
       const box = document.getElementById('progressContainer');
@@ -228,7 +278,6 @@
     }
 
     function uint8ArrayToBase64(bytes) {
-      // Compatible, small helper – avoids URL encoding issues
       let binary = '';
       const chunk = 0x8000;
       for (let i = 0; i < bytes.length; i += chunk) {
@@ -257,6 +306,8 @@
         updateProgress(10, 'Processing & generating participant page...');
         const mergedPdf = await PDFDocument.create();
         const font = await mergedPdf.embedFont(StandardFonts.Helvetica);
+
+        // participant page (if any Meals)
         let hasMealExpenses = false;
         const allParticipants = [];
         const receiptEntries = document.querySelectorAll('.receipt-entry');
@@ -264,12 +315,10 @@
           const expenseType = entry.querySelector(`select[name="type${index}"]`).value;
           if (expenseType === 'Meals') {
             hasMealExpenses = true;
-            const participantCount = parseInt(entry.querySelector(`input[name="participants_count${index}"]`).value, 10) || 0;
+            const participantCount = parseInt(entry.querySelector(`input[name="participants_count${index}"]`)?.value || '0', 10);
             for (let i = 0; i < participantCount; i++) {
               const nameInput = entry.querySelector(`input[name="participant_${index}_name_${i}"]`);
-              if (nameInput && nameInput.value) {
-                allParticipants.push(nameInput.value);
-              }
+              if (nameInput && nameInput.value) allParticipants.push(nameInput.value);
             }
           }
         });
@@ -304,22 +353,22 @@
         
         updateProgress(70, 'Preparing data for submission...');
         const mergedPdfBytes = await mergedPdf.save();
-        const mergedPdfBase64 = uint8ArrayToBase64(mergedPdfBytes); // <-- DEFINE IT
+        const mergedPdfBase64 = uint8ArrayToBase64(mergedPdfBytes);
 
-        // Build payload (fire-and-forget)
+        // Build payload
         const fd = new FormData();
         const formData = new FormData(form);
         for (const [k, v] of formData.entries()) {
-          if (typeof v !== 'object') fd.append(k, v); // keep text fields, skip raw File objects
+          if (typeof v !== 'object') fd.append(k, v); // skip File objects (already merged)
         }
         fd.append("reference", ref);
         fd.append("receiptCount", receiptIndex);
-        fd.append("fileBase64", mergedPdfBase64);             // raw Base64 (no encodeURIComponent)
+        fd.append("fileBase64", mergedPdfBase64);
         fd.append("fileName", `Consolidated_Receipts_${ref}.pdf`);
         fd.append("fileMimeType", "application/pdf");
         
         updateProgress(90, 'Sending...');
-        fetch(SCRIPT_URL, { method: "POST", body: fd, mode: 'no-cors' }) // opaque but posts fine
+        fetch(SCRIPT_URL, { method: "POST", body: fd, mode: 'no-cors' })
           .catch(err => {
             console.error("Fetch failed to send:", err);
             submitButton.disabled = false; 
@@ -336,6 +385,7 @@
           document.getElementById('receipts').innerHTML = '';
           receiptIndex = 0;
           handleFormDisplay();
+          toggleTravelSection();
         }, 500);
 
       } catch (error) {
