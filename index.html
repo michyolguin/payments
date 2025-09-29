@@ -47,7 +47,11 @@
       <div id="commonInfoSection" class="form-section hidden">
         <label>Full Name</label><input type="text" name="fullName" required>
         <label>Email Address</label><input type="email" name="email" required>
-        <label>Project Lead or Project Name</label><input list="projectNumbers" name="project" required><datalist id="projectNumbers"><option value="Christine LUTRINGER – AHCD 2025 – P0189"><option value="Vincent CHETAIL – NCCR / Migration Governance – S2334"></datalist>
+        <label>Project Lead or Project Name</label><input list="projectNumbers" name="project" required>
+        <datalist id="projectNumbers">
+          <option value="Christine LUTRINGER – AHCD 2025 – P0189">
+          <option value="Vincent CHETAIL – NCCR / Migration Governance – S2334">
+        </datalist>
       </div>
 
       <div id="bankDetailsSection" class="form-section hidden">
@@ -117,7 +121,13 @@
         <label>Date</label><input type="date" name="date${r_index}" required>
         <label>Expense Type</label>
         <select name="type${r_index}" onchange="handleExpenseTypeChange(${r_index})" required>
-          <option value="">Select a type</option><option value="Travel">Travel</option><option value="Accommodation">Accommodation</option><option value="Meals">Meals</option><option value="Supplies">Supplies</option><option value="Honorarium">Honorarium</option><option value="Other">Other</option>
+          <option value="">Select a type</option>
+          <option value="Travel">Travel</option>
+          <option value="Accommodation">Accommodation</option>
+          <option value="Meals">Meals</option>
+          <option value="Supplies">Supplies</option>
+          <option value="Honorarium">Honorarium</option>
+          <option value="Other">Other</option>
         </select>
         <div id="meal-participants-${r_index}" class="meal-participants hidden"></div>
         <label>Currency</label><input type="text" name="currency${r_index}" placeholder="e.g., CHF" required>
@@ -173,14 +183,18 @@
         messageDiv.className = 'pp-message';
         messageDiv.innerText = '';
         ackBox.classList.add('hidden');
-        ackCheckbox.required = false; // --- FIX ---
+        ackCheckbox.required = false;
         return;
       }
 
       const amountInput = document.querySelector(`input[name="amount${index}"]`);
       const participantsInput = document.querySelector(`input[name="participants_count${index}"]`);
       
-      if (!amountInput || !participantsInput) { ackBox.classList.add('hidden'); ackCheckbox.required = false; return; }
+      if (!amountInput || !participantsInput) { 
+        ackBox.classList.add('hidden'); 
+        ackCheckbox.required = false; 
+        return; 
+      }
       
       const amount = parseFloat(amountInput.value);
       const participants = parseInt(participantsInput.value, 10);
@@ -192,27 +206,43 @@
           messageDiv.className = 'pp-message pp-warning';
           messageDiv.innerText += ` (Note: This exceeds the institutional regulatory limit.)`;
           ackBox.classList.remove('hidden');
-          ackCheckbox.required = true; // --- FIX ---
+          ackCheckbox.required = true;
         } else {
           messageDiv.className = 'pp-message pp-ok';
           ackBox.classList.add('hidden');
-          ackCheckbox.required = false; // --- FIX ---
+          ackCheckbox.required = false;
         }
       } else {
         messageDiv.innerText = '';
         ackBox.classList.add('hidden');
-        ackCheckbox.required = false; // --- FIX ---
+        ackCheckbox.required = false;
       }
     }
+
+    function updateProgress(percent, message) {
+      const bar = document.getElementById('progressBar');
+      const box = document.getElementById('progressContainer');
+      box.classList.remove('hidden');
+      bar.style.width = percent + '%';
+      bar.textContent = message || '';
+    }
+
+    function uint8ArrayToBase64(bytes) {
+      // Compatible, small helper – avoids URL encoding issues
+      let binary = '';
+      const chunk = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        const sub = bytes.subarray(i, i + chunk);
+        binary += String.fromCharCode.apply(null, sub);
+      }
+      return btoa(binary);
+    }
     
-    function handleIBANInput() { /* Same as before */ }
-    function handleAccountInput() { /* Same as before */ }
-    function validateBankAddress() { /* Same as before */ }
-    function updateProgress(percent, message) { /* Same as before */ }
-    function uint8ArrayToBase64(bytes) { /* Same as before */ }
-    
+    function handleIBANInput() {}
+    function handleAccountInput() {}
+    function validateBankAddress() {}
+
     document.getElementById('reimbursementForm').addEventListener('submit', async function (e) {
-      // Form submission logic is the same as the "fire-and-forget" version
       e.preventDefault();
       const form = e.target;
       const ref = 'REF' + Date.now();
@@ -273,43 +303,47 @@
         }
         
         updateProgress(70, 'Preparing data for submission...');
-      const fd = new FormData();
-      const formData = new FormData(form);             // grab all visible fields
-      for (const [k, v] of formData.entries()) {
-        if (typeof v !== 'object') fd.append(k, v);    // skip File objects (we already merged)
-      }
-      fd.append("reference", ref);
-      fd.append("receiptCount", receiptIndex);
-      fd.append("fileBase64", mergedPdfBase64);        // raw Base64, no encodeURIComponent
-      fd.append("fileName", `Consolidated_Receipts_${ref}.pdf`);
-      fd.append("fileMimeType", "application/pdf");
-      
-      updateProgress(90, 'Sending...');
-      fetch(SCRIPT_URL, { method: "POST", body: fd })  // no mode: 'no-cors'
-        .catch(err => {
-          console.error("Fetch failed to send:", err);
-          submitButton.disabled = false;
-          progressContainer.classList.add('hidden');
-          referenceBox.innerText = '❌ Submission failed. Please check your internet connection and try again.';
-        });
+        const mergedPdfBytes = await mergedPdf.save();
+        const mergedPdfBase64 = uint8ArrayToBase64(mergedPdfBytes); // <-- DEFINE IT
+
+        // Build payload (fire-and-forget)
+        const fd = new FormData();
+        const formData = new FormData(form);
+        for (const [k, v] of formData.entries()) {
+          if (typeof v !== 'object') fd.append(k, v); // keep text fields, skip raw File objects
+        }
+        fd.append("reference", ref);
+        fd.append("receiptCount", receiptIndex);
+        fd.append("fileBase64", mergedPdfBase64);             // raw Base64 (no encodeURIComponent)
+        fd.append("fileName", `Consolidated_Receipts_${ref}.pdf`);
+        fd.append("fileMimeType", "application/pdf");
+        
+        updateProgress(90, 'Sending...');
+        fetch(SCRIPT_URL, { method: "POST", body: fd, mode: 'no-cors' }) // opaque but posts fine
+          .catch(err => {
+            console.error("Fetch failed to send:", err);
+            submitButton.disabled = false; 
+            progressContainer.classList.add('hidden');
+            referenceBox.innerText = '❌ Submission failed. Please check your internet connection and try again.';
+          });
         
         updateProgress(100, '');
         progressContainer.classList.add('hidden');
         referenceBox.innerHTML = `✅ Your request has been sent successfully!<br><br><strong>PLEASE SAVE YOUR REFERENCE NUMBER:</strong><br><span style="font-size: 1.2em; background-color: #d4edda; padding: 5px 10px; border-radius: 4px;">${ref}</span><br><br>You will receive a confirmation email once it has been processed.`;
         
         setTimeout(() => {
-            form.reset();
-            document.getElementById('receipts').innerHTML = '';
-            receiptIndex = 0;
-            handleFormDisplay();
+          form.reset();
+          document.getElementById('receipts').innerHTML = '';
+          receiptIndex = 0;
+          handleFormDisplay();
         }, 500);
 
       } catch (error) {
-          console.error("An error occurred before sending:", error);
-          updateProgress(100, ''); 
-          progressContainer.classList.add('hidden'); 
-          referenceBox.innerText = '❌ An error occurred while preparing your files. Please try again.'; 
-          submitButton.disabled = false;
+        console.error("An error occurred before sending:", error);
+        updateProgress(100, ''); 
+        progressContainer.classList.add('hidden'); 
+        referenceBox.innerText = '❌ An error occurred while preparing your files. Please try again.'; 
+        submitButton.disabled = false;
       }
     });
   </script>
