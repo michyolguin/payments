@@ -273,24 +273,24 @@
         }
         
         updateProgress(70, 'Preparing data for submission...');
-        const mergedPdfBytes = await mergedPdf.save();
-        const mergedPdfBase64 = uint8ArrayToBase64(mergedPdfBytes);
-        const data = new URLSearchParams();
-        const formData = new FormData(form);
-        for (const [key, value] of formData.entries()) {
-          if (typeof value !== 'object') data.append(key, value);
-        }
-        data.append("reference", ref);
-        data.append("receiptCount", receiptIndex);
-        data.append("fileBase64", mergedPdfBase64);
-        data.append("fileName", `Consolidated_Receipts_${ref}.pdf`);
-        data.append("fileMimeType", "application/pdf");
-        
-        updateProgress(90, 'Sending...');
-        fetch(SCRIPT_URL, { method: "POST", body: data, mode: 'no-cors' }).catch(err => {
-            console.error("Fetch failed to send:", err);
-            submitButton.disabled = false; progressContainer.classList.add('hidden');
-            referenceBox.innerText = '❌ Submission failed. Please check your internet connection and try again.';
+      const fd = new FormData();
+      const formData = new FormData(form);             // grab all visible fields
+      for (const [k, v] of formData.entries()) {
+        if (typeof v !== 'object') fd.append(k, v);    // skip File objects (we already merged)
+      }
+      fd.append("reference", ref);
+      fd.append("receiptCount", receiptIndex);
+      fd.append("fileBase64", mergedPdfBase64);        // raw Base64, no encodeURIComponent
+      fd.append("fileName", `Consolidated_Receipts_${ref}.pdf`);
+      fd.append("fileMimeType", "application/pdf");
+      
+      updateProgress(90, 'Sending...');
+      fetch(SCRIPT_URL, { method: "POST", body: fd })  // no mode: 'no-cors'
+        .catch(err => {
+          console.error("Fetch failed to send:", err);
+          submitButton.disabled = false;
+          progressContainer.classList.add('hidden');
+          referenceBox.innerText = '❌ Submission failed. Please check your internet connection and try again.';
         });
         
         updateProgress(100, '');
