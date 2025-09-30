@@ -5,6 +5,7 @@
   <title>Reimbursement Portal</title>
   <script src="https://unpkg.com/pdf-lib"></script>
   <script src="https://cdn.jsdelivr.net/npm/iban/dist/iban.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.1/dist/tesseract.min.js"></script>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 2rem; background-color: #f4f4f9; color: #333; }
     h1, h2, h3 { color: #2c3e50; }
@@ -14,8 +15,8 @@
     input, select, textarea { width: 100%; padding: 0.75rem; margin-top: 0.3rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
     input:disabled { background-color: #f0f0f0; cursor: not-allowed; }
     button { background-color: #3498db; color: white; padding: 0.75rem 1.5rem; margin-top: 1rem; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; transition: background-color 0.3s; }
-    .validation-message { font-size: 0.9em; margin-top: 0.3rem; height: 1em; }
-    .pp-message { margin-top: 0.5rem; font-weight: bold; height: 1em; }
+    .validation-message { font-size: 0.9em; margin-top: 0.3rem; min-height: 1em; color: #555; }
+    .pp-message { margin-top: 0.5rem; font-weight: bold; min-height: 1em; }
     .pp-ok { color: #2ecc71; }
     .pp-warning { color: #e74c3c; }
     .ack-box { margin-top: 1rem; padding: 0.75rem; background-color: #fffbe6; border: 1px solid #ffeeba; border-radius: 4px; }
@@ -139,8 +140,11 @@
       container.innerHTML = `
         <h4>Receipt ${r_index + 1}</h4>
         <label>Upload Receipt (PDF, JPG, PNG)</label>
-          <input type="file" name="receiptFile${r_index}" accept=".pdf,.jpg,.jpeg,.png" required>
-        <label>Date</label><input type="date" name="date${r_index}" required>
+        <input type="file" name="receiptFile${r_index}" accept=".pdf,.jpg,.jpeg,.png" required>
+
+        <label>Date</label>
+        <input type="date" name="date${r_index}" required>
+
         <label>Expense Type</label>
         <select name="type${r_index}" onchange="handleExpenseTypeChange(${r_index})" required>
           <option value="">Select a type</option>
@@ -151,9 +155,18 @@
           <option value="Honorarium">Honorarium</option>
           <option value="Other">Other</option>
         </select>
+
         <div id="meal-participants-${r_index}" class="meal-participants hidden"></div>
-        <label>Currency</label><input type="text" name="currency${r_index}" placeholder="e.g., CHF" required>
-        <label>Amount</label><input type="number" name="amount${r_index}" step="0.01" oninput="calculateMealsAverage(${r_index})" required>
+
+        <label>Currency</label>
+        <input type="text" name="currency${r_index}" placeholder="e.g., CHF" required>
+
+        <label>Amount</label>
+        <input type="number" name="amount${r_index}" step="0.01" oninput="calculateMealsAverage(${r_index})" required>
+
+        <button type="button" onclick="scanReceipt(${r_index})">🧠 Scan for total</button>
+        <div id="scan-msg-${r_index}" class="validation-message"></div>
+
         <div id="pp-message-${r_index}" class="pp-message"></div>
         <div id="ack-box-${r_index}" class="ack-box hidden">
           <input type="checkbox" id="ack-checkbox-${r_index}" name="ack_limit_${r_index}">
@@ -292,6 +305,164 @@
     function handleAccountInput() {}
     function validateBankAddress() {}
 
+    // ---------------------
+    // OCR: Scan for totals
+    // ---------------------
+    async function scanReceipt(index) {
+      const msg = document.getElementById(`scan-msg-${index}`);
+      msg.textContent = '';
+
+      // get file
+      const entry = document.getElementById(`receipt-entry-${index}`);
+      const fileInput = entry?.querySelector(`input[name="receiptFile${index}"]`);
+      if (!fileInput || fileInput.files.length === 0) {
+        msg.textContent = 'Please choose a receipt file first.';
+        return;
+      }
+      const file = fileInput.files[0];
+
+      // Only scan images for now
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        msg.textContent = 'For scanning, please upload a JPG/PNG (PDF scan coming soon).';
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        msg.textContent = 'Unsupported file type. Please upload a JPG or PNG.';
+        return;
+      }
+
+      // UI
+      const scanButton = entry.querySelector('button[onclick^="scanReceipt("]');
+      const prevLabel = scanButton.textContent;
+      scanButton.disabled = true;
+      scanButton.textContent = 'Scanning… (this may take ~5–10s)';
+      msg.textContent = '';
+
+      try {
+        // Read image as dataURL
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        // Run OCR
+        const { createWorker } = Tesseract;
+        const worker = await createWorker('eng', 1, {
+          logger: m => {
+            if (m.status === 'recognizing text' && m.progress != null) {
+              msg.textContent = `Scanning… ${Math.round(m.progress * 100)}%`;
+            }
+          }
+        });
+
+        const result = await worker.recognize(dataUrl);
+        await worker.terminate();
+
+        const text = (result && result.data && result.data.text) ? result.data.text : '';
+        if (!text.trim()) {
+          msg.textContent = 'No text detected. Try a clearer photo.';
+          return;
+        }
+
+        // Parse amount + currency
+        const { currencyGuess, amountGuess, debugNote } = extractTotalFromText(text);
+
+        // Fill inputs
+        const currencyInput = entry.querySelector(`input[name="currency${index}"]`);
+        const amountInput = entry.querySelector(`input[name="amount${index}"]`);
+
+        if (currencyGuess) currencyInput.value = currencyGuess;
+        if (amountGuess != null) amountInput.value = amountGuess.toFixed(2);
+
+        if (amountGuess == null) {
+          msg.textContent = 'Couldn’t confidently find a total. Please enter it manually.';
+        } else {
+          msg.textContent = `Suggested total: ${currencyInput.value || ''} ${amountGuess.toFixed(2)}${debugNote ? ' • ' + debugNote : ''}`;
+          calculateMealsAverage(index);
+        }
+
+      } catch (err) {
+        console.error('OCR error:', err);
+        msg.textContent = 'Scan failed. Try a clearer image.';
+      } finally {
+        scanButton.disabled = false;
+        scanButton.textContent = prevLabel;
+      }
+    }
+
+    function extractTotalFromText(text) {
+      const t = text.replace(/\u00A0/g, ' ').replace(/[,，]/g, '.'); // normalize spaces/commas
+      const currencyTokens = ['CHF', 'SFR', 'FR', 'EUR', '€', 'USD', '\\$','GBP','£'];
+
+      // “total” hints
+      const totalHints = /(grand\s*total|amount\s*due|total\s*to\s*pay|total|balance\s*due)/i;
+      const lines = t.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+      let bestCurrency = null;
+      let bestAmount = null;
+
+      // helper: first money-like number on a line
+      const moneyOnLine = (line) => {
+        const moneyRegex = new RegExp(`(?:(${currencyTokens.join('|')})\\s*)?(\\d{1,3}(?:\\.\\d{3})*(?:\\.\\d{2})|\\d+\\.\\d{2})(?:\\s*(${currencyTokens.join('|')}))?`, 'i');
+        const m = line.match(moneyRegex);
+        if (!m) return null;
+        const leftCur = m[1];
+        const numStr = m[2];
+        const rightCur = m[3];
+        const cur = (leftCur || rightCur || '').toUpperCase().replace(/[^A-Z€$£]/g,'');
+        const amt = parseFloat(numStr);
+        return { cur, amt };
+      };
+
+      // Pass A: look for lines mentioning total
+      for (const line of lines) {
+        if (totalHints.test(line)) {
+          const found = moneyOnLine(line);
+          if (found) {
+            bestCurrency = normalizeCurrency(found.cur) || bestCurrency;
+            bestAmount = found.amt;
+            return { currencyGuess: bestCurrency || guessCurrencyFromText(t) || 'CHF', amountGuess: bestAmount, debugNote: 'from “total” line' };
+          }
+        }
+      }
+
+      // Pass B: take largest amount
+      let maxFound = { amt: -1, cur: null };
+      for (const line of lines) {
+        const found = moneyOnLine(line);
+        if (found && found.amt > maxFound.amt) maxFound = found;
+      }
+      if (maxFound.amt > 0) {
+        bestCurrency = normalizeCurrency(maxFound.cur) || guessCurrencyFromText(t) || 'CHF';
+        bestAmount = maxFound.amt;
+        return { currencyGuess: bestCurrency, amountGuess: bestAmount, debugNote: 'largest amount found' };
+      }
+
+      return { currencyGuess: guessCurrencyFromText(t) || null, amountGuess: null, debugNote: null };
+    }
+
+    function normalizeCurrency(cur) {
+      if (!cur) return null;
+      const c = cur.toUpperCase();
+      if (c.includes('CHF') || c.includes('SFR') || c === 'FR') return 'CHF';
+      if (c.includes('EUR') || c.includes('€')) return 'EUR';
+      if (c.includes('USD') || c.includes('$')) return 'USD';
+      if (c.includes('GBP') || c.includes('£')) return 'GBP';
+      return null;
+    }
+
+    function guessCurrencyFromText(text) {
+      const u = text.toUpperCase();
+      if (u.includes('CHF') || u.includes('SFR')) return 'CHF';
+      if (u.includes('EUR') || u.includes('€')) return 'EUR';
+      if (u.includes('USD') || u.includes('$')) return 'USD';
+      if (u.includes('GBP') || u.includes('£')) return 'GBP';
+      return null;
+    }
+    // ---------------------
+
     document.getElementById('reimbursementForm').addEventListener('submit', async function (e) {
       e.preventDefault();
       const form = e.target;
@@ -340,51 +511,48 @@
           });
         }
 
-            updateProgress(40, 'Merging receipts...');
-            
-            const A4 = { w: 595.28, h: 841.89 }; // pt units (72 dpi)
-            for (const entry of receiptEntries) {
-              const fileInput = entry.querySelector('input[type="file"]');
-              if (!fileInput || fileInput.files.length === 0) continue;
-            
-              const file = fileInput.files[0];
-              const nameLower = file.name.toLowerCase();
-              const isPdf = file.type === 'application/pdf' || nameLower.endsWith('.pdf');
-            
-              if (isPdf) {
-                // Merge PDF pages directly
-                const bytes = await file.arrayBuffer();
-                const srcPdf = await PDFDocument.load(bytes);
-                const pages = await mergedPdf.copyPages(srcPdf, srcPdf.getPageIndices());
-                pages.forEach(p => mergedPdf.addPage(p));
-              } else if (file.type.startsWith('image/')) {
-                // Embed image as a full page (scaled to A4 while preserving aspect ratio)
-                const imgBytes = await file.arrayBuffer();
-                let img;
-                if (file.type === 'image/jpeg' || nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg')) {
-                  img = await mergedPdf.embedJpg(imgBytes);
-                } else {
-                  // treat as PNG
-                  img = await mergedPdf.embedPng(imgBytes);
-                }
-            
-                const imgW = img.width;
-                const imgH = img.height;
-            
-                // Scale image to fit within A4
-                const scale = Math.min(A4.w / imgW, A4.h / imgH);
-                const drawW = imgW * scale;
-                const drawH = imgH * scale;
-            
-                const page = mergedPdf.addPage([A4.w, A4.h]);
-                const x = (A4.w - drawW) / 2;
-                const y = (A4.h - drawH) / 2;
-            
-                page.drawImage(img, { x, y, width: drawW, height: drawH });
-              } else {
-                console.warn('Unsupported file type:', file.type || nameLower);
-              }
+        updateProgress(40, 'Merging receipts...');
+        const A4 = { w: 595.28, h: 841.89 }; // pt units (72 dpi)
+        for (const entry of receiptEntries) {
+          const fileInput = entry.querySelector('input[type="file"]');
+          if (!fileInput || fileInput.files.length === 0) continue;
+
+          const file = fileInput.files[0];
+          const nameLower = file.name.toLowerCase();
+          const isPdf = file.type === 'application/pdf' || nameLower.endsWith('.pdf');
+
+          if (isPdf) {
+            // Merge PDF pages directly
+            const bytes = await file.arrayBuffer();
+            const srcPdf = await PDFDocument.load(bytes);
+            const pages = await mergedPdf.copyPages(srcPdf, srcPdf.getPageIndices());
+            pages.forEach(p => mergedPdf.addPage(p));
+          } else if (file.type.startsWith('image/')) {
+            // Embed image as a full page (scaled to A4 while preserving aspect ratio)
+            const imgBytes = await file.arrayBuffer();
+            let img;
+            if (file.type === 'image/jpeg' || nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg')) {
+              img = await mergedPdf.embedJpg(imgBytes);
+            } else {
+              img = await mergedPdf.embedPng(imgBytes);
             }
+
+            const imgW = img.width;
+            const imgH = img.height;
+
+            const scale = Math.min(A4.w / imgW, A4.h / imgH);
+            const drawW = imgW * scale;
+            const drawH = imgH * scale;
+
+            const page = mergedPdf.addPage([A4.w, A4.h]);
+            const x = (A4.w - drawW) / 2;
+            const y = (A4.h - drawH) / 2;
+
+            page.drawImage(img, { x, y, width: drawW, height: drawH });
+          } else {
+            console.warn('Unsupported file type:', file.type || nameLower);
+          }
+        }
         
         updateProgress(70, 'Preparing data for submission...');
         const mergedPdfBytes = await mergedPdf.save();
