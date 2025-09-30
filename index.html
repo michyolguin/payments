@@ -1,867 +1,707 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Reimbursement Portal</title>
   <script src="https://unpkg.com/pdf-lib"></script>
   <script src="https://cdn.jsdelivr.net/npm/iban/dist/iban.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.1/dist/tesseract.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 2rem; background-color: #f4f4f9; color: #333; }
-    h1, h2, h3 { color: #2c3e50; }
-    .hidden { display: none; }
-    .form-section, .receipt-entry { margin-bottom: 1.5rem; padding: 1.5rem; border: 1px solid #ddd; border-radius: 8px; background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    label { display: block; margin-top: 1rem; font-weight: bold; color: #555; }
-    input, select, textarea { width: 100%; padding: 0.75rem; margin-top: 0.3rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-    input:disabled { background-color: #e6e8eb; cursor: not-allowed; color: #6b7280; border-color: #cbd5e1; }
-
-/* extra class we’ll toggle so it looks muted even before :disabled applies */
-.muted {
-  background-color: #e6e8eb !important;
-  color: #6b7280 !important;
-  border-color: #cbd5e1 !important;
-}
-
-/* dim the placeholder when muted (when it’s present) */
-.muted::placeholder { color: #9aa3ad; }
-    button { background-color: #3498db; color: white; padding: 0.75rem 1.5rem; margin-top: 1rem; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; transition: background-color 0.3s; }
-    .validation-message { font-size: 0.9em; margin-top: 0.3rem; min-height: 1em; color: #555; }
-    .pp-message { margin-top: 0.5rem; font-weight: bold; min-height: 1em; }
-    .pp-ok { color: #2ecc71; }
-    .pp-warning { color: #e74c3c; }
-    .ack-box { margin-top: 1rem; padding: 0.75rem; background-color: #fffbe6; border: 1px solid #ffeeba; border-radius: 4px; }
-    .ack-box label { font-weight: normal; font-size: 0.9em; }
-    .ack-box input { width: auto; margin-right: 0.5rem; }
-    #referenceNumber { margin-top: 1rem; font-weight: bold; white-space: pre-line; padding: 1rem; border-radius: 4px; text-align: center; }
-    #progressContainer { width: 100%; background-color: #e0e0e0; border-radius: 4px; margin-top: 1rem; overflow: hidden; }
-    #progressBar { width: 0%; height: 24px; background-color: #3498db; border-radius: 4px; text-align: center; color: white; line-height: 24px; transition: width 0.4s ease; }
+    :root{
+      --sticky-top: 0.5rem;
+      --sticky-bg: #f7f8fb;
+      --muted: #e6e7ea;
+      --muted-text:#8c8f96;
+      --card-bg:#fff;
+      --card-br:#ddd;
+      --ink:#2c3e50;
+      --ink-2:#555;
+      --accent:#3498db;
+      --warn:#e74c3c;
+      --ok:#2ecc71;
+    }
+    *{box-sizing:border-box}
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      margin:0;
+      color:#333;
+      background:#f4f4f9;
+    }
+    header.page{
+      position:sticky; top:0; z-index:50;
+      background:linear-gradient(180deg, #ffffff 70%, #ffffffcc 100%);
+      border-bottom:1px solid #eee;
+      padding:1rem 1.25rem;
+    }
+    header.page h1{margin:0; color:var(--ink); font-size:1.5rem}
+    main{max-width:980px; margin:0 auto; padding:1rem}
+    .section{
+      background:var(--card-bg);
+      border:1px solid var(--card-br);
+      border-radius:12px;
+      box-shadow:0 2px 6px rgba(0,0,0,.05);
+      margin-bottom:1rem;
+      padding:0 1rem 1rem;
+    }
+    .section-header{
+      position:sticky;
+      top:calc(var(--sticky-top) + 48px); /* below page header */
+      background:var(--sticky-bg);
+      margin:0 -1rem 1rem;
+      padding:0.65rem 1rem;
+      border-bottom:1px solid #e9e9ef;
+      z-index:20;
+    }
+    .section-header h2{
+      margin:0; font-size:1.05rem; letter-spacing:.2px; color:var(--ink);
+    }
+    .grid-2{
+      display:grid; grid-template-columns:1fr 1fr; gap:1rem;
+    }
+    .grid-3{
+      display:grid; grid-template-columns:repeat(3,1fr); gap:1rem;
+    }
+    label{
+      display:block; font-weight:600; color:var(--ink-2); margin:.75rem 0 .35rem;
+    }
+    input, select, textarea, button{
+      font:inherit;
+    }
+    input, select, textarea{
+      width:100%; padding:.7rem .8rem;
+      border:1px solid #ccc; border-radius:8px; background:#fff;
+    }
+    input::placeholder, textarea::placeholder{ color:#9aa0a6 }
+    input:disabled, textarea:disabled{
+      background:var(--muted);
+      color:var(--muted-text);
+      cursor:not-allowed;
+    }
+    .muted-placeholder::placeholder{ color:transparent; }
+    .help{font-size:.9em; color:#777; margin-top:.25rem; min-height:1em}
+    .hidden{display:none}
+    .receipt{
+      border:1px dashed #d9dbe1; border-radius:10px; padding:1rem; margin:.75rem 0;
+      background:#fafbff;
+    }
+    .controls{display:flex; gap:.75rem; flex-wrap:wrap; margin-top:.5rem}
+    button.primary{
+      background:var(--accent); color:#fff; border:none; border-radius:8px;
+      padding:.7rem 1.1rem; cursor:pointer;
+    }
+    button.secondary{
+      background:#eef4ff; color:#2b64d5; border:1px solid #d9e6ff; border-radius:8px;
+      padding:.6rem .95rem; cursor:pointer;
+    }
+    .pp-message{font-weight:700; margin-top:.35rem}
+    .pp-ok{color:var(--ok)}
+    .pp-warning{color:var(--warn)}
+    .ack{
+      background:#fffbe6; border:1px solid #ffe6a3; border-radius:8px; padding:.6rem .7rem; margin-top:.4rem;
+    }
+    .progress-wrap{margin-top:1rem}
+    .bar-outer{width:100%; height:10px; background:#e0e3ea; border-radius:6px; overflow:hidden}
+    .bar-inner{height:100%; width:0%; background:var(--accent); transition:width .35s ease}
+    #referenceNumber{margin-top:.7rem; font-weight:700; text-align:center}
   </style>
 </head>
 <body>
-  <h1>Reimbursement Portal</h1>
-  
-  <div id="form">
-    <h2>Submit New Reimbursement Request</h2>
-    <!-- ENABLE BROWSER AUTOFILL -->
+  <header class="page"><h1>Reimbursement Portal</h1></header>
+
+  <main>
     <form id="reimbursementForm" autocomplete="on">
-      <div class="form-section">
-        <label for="employeeStatus">Are you employed by the institute?</label>
-        <select id="employeeStatus" name="employeeStatus" required onchange="handleFormDisplay()">
-          <option value="" disabled selected>Please select an option</option>
-          <option value="yes">Yes (Internal Reimbursement)</option>
-          <option value="no">No (External Reimbursement)</option>
+      <!-- SECTION: Basics -->
+      <section class="section" id="sec-basics">
+        <div class="section-header"><h2>1) Basics</h2></div>
+        <label for="employeeStatus">Are you employed by the Institute?</label>
+        <select id="employeeStatus" name="employeeStatus" required>
+          <option value="" disabled selected>Select one…</option>
+          <option value="yes">Yes (Internal reimbursement)</option>
+          <option value="no">No (External reimbursement)</option>
         </select>
-      </div>
 
-      <div id="commonInfoSection" class="form-section hidden">
-        <label>Full Name</label>
-        <input type="text" name="fullName" autocomplete="name" required>
-
-        <label>Email Address</label>
-        <input type="email" name="email" autocomplete="email" required>
-
-        <label>Reason for Reimbursement</label>
-        <textarea name="reimbursementReason" rows="3" required placeholder="Why are you claiming these expenses?"></textarea>
-
-        <label>Project Lead or Project Name</label>
-        <input list="projectNumbers" name="project" id="projectInput" required autocomplete="organization">
-        <datalist id="projectNumbers">
-          <option value="Christine LUTRINGER – AHCD 2025 – P0189">
-          <option value="Doc.CH / Health as a Form of Politics in North India – P0024">
-          <option value="Vincent CHETAIL – NCCR / Migration Governance – S2334">
-        </datalist>
-
-        <label>Your Address</label>
-        <textarea name="address" rows="3" autocomplete="street-address"></textarea>
-      </div>
-
-      <!-- BANK DETAILS (dynamic) -->
-      <div id="bankDetailsSection" class="form-section hidden">
-        <h3>Bank Details</h3>
-
-        <!-- Two-up layout -->
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-          <div>
-            <label>IBAN</label>
-            <input type="text" name="iban" id="ibanInput"
-                   inputmode="text" autocapitalize="characters" autocomplete="off"
-                   placeholder="e.g., CH9300762011623852957">
-            <div id="ibanValidation" class="validation-message"></div>
+        <div id="commonInfo" class="hidden">
+          <div class="grid-2">
+            <div>
+              <label>What’s your full name?</label>
+              <input type="text" name="fullName" autocomplete="name" placeholder="e.g., Jane Doe" required />
+            </div>
+            <div>
+              <label>What’s your email address?</label>
+              <input type="email" name="email" autocomplete="email" placeholder="e.g., jane@domain.tld" required />
+            </div>
           </div>
 
+          <label>What’s the reason for reimbursement?</label>
+          <textarea name="reimbursementReason" rows="3" placeholder="Briefly explain why you’re claiming these expenses…" required></textarea>
+
+          <label>Which project is this for?</label>
+          <input list="projectNumbers" name="project" id="projectInput" autocomplete="organization"
+                 placeholder="Start typing a project (e.g., P0024)…" required />
+          <datalist id="projectNumbers">
+            <option value="Christine LUTRINGER – AHCD 2025 – P0189">
+            <option value="Doc.CH / Health as a Form of Politics in North India – P0024">
+            <option value="Vincent CHETAIL – NCCR / Migration Governance – S2334">
+          </datalist>
+
+          <label>What’s your postal address?</label>
+          <textarea name="address" rows="3" autocomplete="street-address" placeholder="Street, number, city, postal code"></textarea>
+        </div>
+      </section>
+
+      <!-- SECTION: Bank (External only) -->
+      <section class="section hidden" id="sec-bank">
+        <div class="section-header"><h2>2) Bank details (external reimbursements)</h2></div>
+
+        <div class="grid-2">
           <div>
-            <label>Bank Account Number (non-IBAN)</label>
-            <input type="text" name="accountNumber" id="accountInput"
-                   inputmode="numeric" autocomplete="off"
-                   placeholder="e.g., 123456789 (4–30 chars)">
-            <div id="acctValidation" class="validation-message"></div>
+            <label>IBAN?</label>
+            <input type="text" name="iban" id="ibanInput" inputmode="text" autocapitalize="characters"
+                   placeholder="Enter an IBAN (e.g., CH9300762011623852957)" />
+            <div id="ibanValidation" class="help"></div>
+          </div>
+          <div>
+            <label>Bank account number (if you don’t have an IBAN)?</label>
+            <input type="text" name="accountNumber" id="accountInput" inputmode="numeric"
+                   placeholder="Enter an account number (4–30 chars)" />
+            <div id="acctValidation" class="help"></div>
           </div>
         </div>
 
-        <!-- Unfurls for non-CH IBAN OR any Bank Account # -->
-        <div id="bicGroup" class="hidden" style="margin-top: 0.75rem;">
-          <label>BIC/SWIFT Code</label>
+        <div id="bicGroup" class="hidden">
+          <label>BIC/SWIFT (needed for non-Swiss IBANs or account numbers)</label>
           <input type="text" name="bankCode" id="bankCodeInput"
                  pattern="[A-Za-z]{4}[A-Za-z]{2}[A-Za-z0-9]{2}([A-Za-z0-9]{3})?"
-                 title="Must be a valid 8 or 11 character BIC/SWIFT code."
-                 autocapitalize="characters" autocomplete="off"
-                 placeholder="e.g., UBSWCHZH80A">
-          <div id="bicHint" class="validation-message"></div>
+                 title="Valid BIC/SWIFT is 8 or 11 characters."
+                 placeholder="Enter BIC/SWIFT (e.g., UBSWCHZH80A)" />
+          <div id="bicHint" class="help"></div>
         </div>
 
-        <!-- Always visible, must contain a number -->
-        <label style="margin-top:1rem;">Bank Name and Address</label>
-        <input type="text" name="bankName" id="bankAddressInput"
-               autocomplete="organization"
+        <label>Bank name and address</label>
+        <input type="text" name="bankName" id="bankAddressInput" autocomplete="organization"
                pattern=".*\\d.*"
-               title="Please include a street/number (e.g., 'Bank, Street 10, City')."
-               placeholder="e.g., UBS AG, Bahnhofstrasse 45, 8001 Zürich">
-        <div id="bankAddressValidation" class="validation-message"></div>
-      </div>
+               title="Please include a street number."
+               placeholder="Enter bank name & address (must include a number)" />
+        <div id="bankAddressValidation" class="help"></div>
+      </section>
 
-      <div id="receiptsSection" class="hidden">
-        <h3>Receipts (Max 16)</h3>
+      <!-- SECTION: Receipts -->
+      <section class="section" id="sec-receipts">
+        <div class="section-header"><h2>3) Receipts</h2></div>
         <div id="receipts"></div>
-        <button type="button" onclick="addReceipt()">Add Receipt</button>
-      </div>
+        <div class="controls"><button type="button" class="secondary" id="addReceiptBtn">+ Add receipt</button></div>
 
-      <!-- Travel section (only shows if any receipt type is Travel) -->
-      <div id="travelSection" class="form-section hidden">
-        <h3>Travel declaration (only if you had travel expenses)</h3>
-        <label><input type="radio" name="planeReason" value="Train" checked> I took the train</label>
-        <label><input type="radio" name="planeReason" value="Train>7h"> I took a plane as the travel by train takes more than 7h</label>
-        <label><input type="radio" name="planeReason" value="Exception"> I took a plane in Europe for a travel lasting less than 7 hours, because of the following exception:</label>
-        <div id="travelExceptionBox" class="hidden" style="margin-top:.5rem">
-          <select name="planeException">
-            <option value="">Select an exception…</option>
-            <option>Health impairments of the person travelling</option>
-            <option>Reconciling care responsibilities and work</option>
-            <option>Safety considerations due to particular events</option>
-            <option>Teaching and/or administrative constraints</option>
-            <option>Cases of force majeure</option>
-            <option>For PhD students only: significant price differences</option>
-          </select>
+        <!-- Travel declaration (auto-shown if any Travel) -->
+        <div id="travelSection" class="hidden" style="margin-top:.75rem;">
+          <label>Travel declaration (only if you had travel expenses)</label>
+          <div>
+            <label><input type="radio" name="planeReason" value="Train" checked /> I took the train</label><br/>
+            <label><input type="radio" name="planeReason" value="Train>7h" /> I took a plane as the travel by train takes more than 7h</label><br/>
+            <label><input type="radio" name="planeReason" value="Exception" /> I took a plane in Europe for a travel lasting less than 7 hours, because of the following exception:</label>
+          </div>
+          <div id="travelExceptionBox" class="hidden" style="margin-top:.5rem">
+            <select name="planeException">
+              <option value="">Select an exception…</option>
+              <option>Health impairments of the person travelling</option>
+              <option>Reconciling care responsibilities and work</option>
+              <option>Safety considerations due to particular events</option>
+              <option>Teaching and/or administrative constraints</option>
+              <option>Cases of force majeure</option>
+              <option>For PhD students only: significant price differences</option>
+            </select>
+          </div>
         </div>
-      </div>
-      
-      <div id="submitSection" class="hidden">
-        <div class="ack-box" style="margin-top:.25rem;">
-          <label><input type="checkbox" id="rememberMe"> Remember my name, email, and address on this device</label>
-        </div>
+      </section>
 
-        <br><button type="submit">Submit</button>
-        <div id="progressContainer" class="hidden"><div id="progressBar"></div></div>
+      <!-- SECTION: Submit -->
+      <section class="section" id="sec-submit">
+        <div class="section-header"><h2>4) Submit</h2></div>
+        <div class="controls">
+          <label style="font-weight:normal">
+            <input type="checkbox" id="rememberMe" />
+            Remember my name, email, and address on this device
+          </label>
+        </div>
+        <div class="controls">
+          <button type="submit" class="primary">Submit</button>
+        </div>
+        <div class="progress-wrap hidden" id="progressContainer">
+          <div class="bar-outer"><div class="bar-inner" id="progressBar"></div></div>
+        </div>
         <div id="referenceNumber"></div>
-      </div>
+      </section>
     </form>
-  </div>
+  </main>
 
   <script>
-    // Use your currently working deployment:
+    // --------- CONFIG ---------
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxwFC0HZsJWbPijNsnHPK6h-uD3A1kLAS3WXveoQTJSH3UiW3K1Cltbu5wdPqvRRBSFiQ/exec";
-
-    let receiptIndex = 0;
-    const maxReceipts = 16;
     const { PDFDocument, rgb, StandardFonts } = PDFLib;
+    const maxReceipts = 16;
+    let receiptIndex = 0;
 
-    // -----------------------------
-    // Project → expense & task map
-    // -----------------------------
+    // Project → expense & task mapping
     const PROJECTS = {
       "P0189": {
         label: "Christine LUTRINGER – AHCD 2025 – P0189",
-        expenseTypes: ["Travel", "Accommodation", "Meals", "Supplies", "Honorarium", "Other"],
+        expenseTypes: ["Travel","Accommodation","Meals","Supplies","Honorarium","Other"],
         taskByType: {}
       },
       "P0024": {
         label: "Doc.CH / Health as a Form of Politics in North India – P0024",
-        expenseTypes: ["Travel", "Accommodation", "Meals", "Supplies", "Other"],
-        taskByType: { "Travel":"30","Accommodation":"31","Meals":"32","Supplies":"33","Other":"39" }
+        expenseTypes: ["Travel","Accommodation","Meals","Supplies","Other"],
+        taskByType: { Travel:"30", Accommodation:"31", Meals:"32", Supplies:"33", Other:"39" }
       },
       "S2334": {
         label: "Vincent CHETAIL – NCCR / Migration Governance – S2334",
-        expenseTypes: ["Travel", "Accommodation", "Meals", "Supplies", "Honorarium", "Other"],
-        taskByType: { "Travel":"10","Accommodation":"11","Meals":"12","Supplies":"13","Honorarium":"14","Other":"19" }
+        expenseTypes: ["Travel","Accommodation","Meals","Supplies","Honorarium","Other"],
+        taskByType: { Travel:"10", Accommodation:"11", Meals:"12", Supplies:"13", Honorarium:"14", Other:"19" }
       }
     };
 
-    function detectProjectCode(inputValue) {
-      const m = (inputValue || "").toUpperCase().match(/\b([PS]\d{4})\b/);
-      return m ? m[1] : null;
-    }
-    function getProjectProfile() {
-      const raw = document.getElementById('projectInput').value.trim();
-      const code = detectProjectCode(raw);
+    // --------- UTIL ---------
+    function detectProjectCode(v){ const m=(v||"").toUpperCase().match(/\b([PS]\d{4})\b/); return m?m[1]:null; }
+    function getProjectProfile(){
+      const raw=document.getElementById('projectInput').value.trim();
+      const code=detectProjectCode(raw);
       return code && PROJECTS[code] ? { code, ...PROJECTS[code] } : null;
     }
+    function updateProgress(pct,msg){
+      const cont=document.getElementById('progressContainer');
+      const bar=document.getElementById('progressBar');
+      cont.classList.remove('hidden'); bar.style.width=pct+'%'; bar.title=msg||'';
+    }
+    function uint8ArrayToBase64(bytes){
+      let bin=''; const chunk=0x8000;
+      for(let i=0;i<bytes.length;i+=chunk){ bin+=String.fromCharCode.apply(null, bytes.subarray(i,i+chunk)); }
+      return btoa(bin);
+    }
 
-    // Restore remembered fields on load (safe subset: name/email/address only)
+    // --------- INIT + REMEMBER ME ---------
     document.addEventListener('DOMContentLoaded', () => {
-      try {
-        const saved = JSON.parse(localStorage.getItem('reimb_user_defaults') || '{}');
-        if (saved.fullName) document.querySelector('input[name="fullName"]').value = saved.fullName;
-        if (saved.email) document.querySelector('input[name="email"]').value = saved.email;
-        if (saved.address) document.querySelector('textarea[name="address"]').value = saved.address;
-      } catch {}
-      // init bank block
+      try{
+        const saved=JSON.parse(localStorage.getItem('reimb_user_defaults')||'{}');
+        if(saved.fullName) document.querySelector('input[name="fullName"]').value=saved.fullName;
+        if(saved.email)    document.querySelector('input[name="email"]').value=saved.email;
+        if(saved.address)  document.querySelector('textarea[name="address"]').value=saved.address;
+      }catch{}
       initBankBlock();
     });
-
-    function saveDefaultsIfWanted() {
-      const remember = document.getElementById('rememberMe')?.checked;
-      if (!remember) return;
-      const payload = {
-        fullName: document.querySelector('input[name="fullName"]').value || '',
-        email: document.querySelector('input[name="email"]').value || '',
-        address: document.querySelector('textarea[name="address"]').value || ''
+    function saveDefaultsIfWanted(){
+      if(!document.getElementById('rememberMe')?.checked) return;
+      const payload={
+        fullName:document.querySelector('input[name="fullName"]').value||'',
+        email:document.querySelector('input[name="email"]').value||'',
+        address:document.querySelector('textarea[name="address"]').value||''
       };
       localStorage.setItem('reimb_user_defaults', JSON.stringify(payload));
     }
 
-    function handleFormDisplay() {
-      const status = document.getElementById('employeeStatus').value;
-      const commonInfo = document.getElementById('commonInfoSection');
-      const bankSection = document.getElementById('bankDetailsSection');
-      const receiptsSection = document.getElementById('receiptsSection');
-      const submitSection = document.getElementById('submitSection');
-      if (status) {
-        commonInfo.classList.remove('hidden');
-        receiptsSection.classList.remove('hidden');
-        submitSection.classList.remove('hidden');
-        if (status === 'no') {
-          bankSection.classList.remove('hidden');
-        } else {
-          bankSection.classList.add('hidden');
-        }
-      }
+    // --------- SECTION VISIBILITY ---------
+    const employeeStatus=document.getElementById('employeeStatus');
+    employeeStatus.addEventListener('change', handleFormDisplay);
+    function handleFormDisplay(){
+      const isExt = employeeStatus.value==='no';
+      document.getElementById('commonInfo').classList.toggle('hidden', !employeeStatus.value);
+      document.getElementById('sec-bank').classList.toggle('hidden', !isExt);
     }
 
-    // Project change → update expense options + task defaults
+    // --------- PROJECT -> EXPENSE TYPES ---------
     document.getElementById('projectInput').addEventListener('input', refreshExpenseTypeOptionsForAllReceipts);
     document.getElementById('projectInput').addEventListener('change', refreshExpenseTypeOptionsForAllReceipts);
 
-    function refreshExpenseTypeOptionsForAllReceipts() {
-      const profile = getProjectProfile();
-      const entries = document.querySelectorAll('.receipt-entry');
-
-      entries.forEach((entry, idx) => {
-        const select = entry.querySelector(`select[name="type${idx}"]`);
-        if (!select) return;
-        const current = select.value;
-        const list = (profile && profile.expenseTypes?.length) ? profile.expenseTypes
-                    : ["Travel", "Accommodation", "Meals", "Supplies", "Honorarium", "Other"];
-        select.innerHTML = `<option value="">Select a type</option>` + list.map(t => `<option value="${t}">${t}</option>`).join('');
-        if (current && list.includes(current)) select.value = current;
-        assignTaskNumberForEntry(idx);
+    function refreshExpenseTypeOptionsForAllReceipts(){
+      const profile=getProjectProfile();
+      document.querySelectorAll('.receipt').forEach((wrap, idx)=>{
+        const sel=wrap.querySelector(`select[name="type${idx}"]`); if(!sel) return;
+        const current=sel.value;
+        const list=(profile && profile.expenseTypes?.length) ? profile.expenseTypes :
+          ["Travel","Accommodation","Meals","Supplies","Honorarium","Other"];
+        sel.innerHTML = `<option value="">Choose an expense type…</option>` + list.map(t=>`<option value="${t}">${t}</option>`).join('');
+        if(current && list.includes(current)) sel.value=current;
+        assignTaskDefault(idx);
       });
     }
 
-    function addReceipt() {
-      if (receiptIndex >= maxReceipts) { alert(`Maximum of ${maxReceipts} receipts allowed.`); return; }
-      const r_index = receiptIndex;
-      const container = document.createElement('div');
-      container.classList.add('receipt-entry');
-      container.id = `receipt-entry-${r_index}`;
+    // --------- RECEIPTS ---------
+    document.getElementById('addReceiptBtn').addEventListener('click', addReceipt);
 
-      const profile = getProjectProfile();
-      const expenseList = (profile && profile.expenseTypes?.length)
-        ? profile.expenseTypes
-        : ["Travel", "Accommodation", "Meals", "Supplies", "Honorarium", "Other"];
+    function addReceipt(){
+      if(receiptIndex>=maxReceipts){ alert(`Maximum of ${maxReceipts} receipts allowed.`); return; }
+      const i=receiptIndex++;
 
-      container.innerHTML = `
-        <h4>Receipt ${r_index + 1}</h4>
-        <label>Upload Receipt (PDF, JPG, PNG)</label>
-        <input type="file" name="receiptFile${r_index}" accept=".pdf,.jpg,.jpeg,.png" required>
+      const profile=getProjectProfile();
+      const expenseList=(profile && profile.expenseTypes?.length) ? profile.expenseTypes :
+        ["Travel","Accommodation","Meals","Supplies","Honorarium","Other"];
 
-        <label>Date</label>
-        <input type="date" name="date${r_index}" required>
+      const wrap=document.createElement('div'); wrap.className='receipt'; wrap.id=`receipt-entry-${i}`;
+      wrap.innerHTML=`
+        <div class="grid-3">
+          <div>
+            <label>Receipt file</label>
+            <input type="file" name="receiptFile${i}" accept=".pdf,.jpg,.jpeg,.png" required />
+          </div>
+          <div>
+            <label>Date of expense</label>
+            <input type="date" name="date${i}" required />
+          </div>
+          <div>
+            <label>Expense type</label>
+            <select name="type${i}" required>
+              <option value="">Choose an expense type…</option>
+              ${expenseList.map(t=>`<option value="${t}">${t}</option>`).join('')}
+            </select>
+          </div>
+        </div>
 
-        <label>Expense Type</label>
-        <select name="type${r_index}" onchange="handleExpenseTypeChange(${r_index})" required>
-          <option value="">Select a type</option>
-          ${expenseList.map(t => `<option value="${t}">${t}</option>`).join('')}
-        </select>
-        
-        <input type="hidden" name="taskNumber${r_index}">
+        <input type="hidden" name="taskNumber${i}" />
 
-        <div id="meal-participants-${r_index}" class="meal-participants hidden"></div>
+        <div id="meal-participants-${i}" class="hidden">
+          <label>How many participants?</label>
+          <input type="number" name="participants_count${i}" min="1" />
+          <div id="participant-names-${i}"></div>
+        </div>
 
-        <label>Currency</label>
-        <input type="text" name="currency${r_index}" autocomplete="off" placeholder="e.g., CHF" required>
+        <div class="grid-3">
+          <div>
+            <label>Currency</label>
+            <input type="text" name="currency${i}" placeholder="e.g., CHF" required />
+          </div>
+          <div>
+            <label>Amount</label>
+            <input type="number" name="amount${i}" step="0.01" inputmode="decimal" required />
+          </div>
+          <div class="controls" style="align-items:end;">
+            <button type="button" class="secondary" onclick="scanReceipt(${i})">🧠 Scan for total</button>
+          </div>
+        </div>
 
-        <label>Amount</label>
-        <input type="number" name="amount${r_index}" inputmode="decimal" step="0.01" oninput="calculateMealsAverage(${r_index})" required>
-
-        <button type="button" onclick="scanReceipt(${r_index})">🧠 Scan for total</button>
-        <div id="scan-msg-${r_index}" class="validation-message"></div>
-
-        <div id="pp-message-${r_index}" class="pp-message"></div>
-        <div id="ack-box-${r_index}" class="ack-box hidden">
-          <input type="checkbox" id="ack-checkbox-${r_index}" name="ack_limit_${r_index}">
-          <label for="ack-checkbox-${r_index}">I acknowledge that the reimbursement for this meal will be capped at the Graduate Institute's maximum per-person rate.</label>
+        <div id="scan-msg-${i}" class="help"></div>
+        <div id="pp-message-${i}" class="pp-message"></div>
+        <div id="ack-box-${i}" class="ack hidden">
+          <label><input type="checkbox" id="ack-checkbox-${i}" name="ack_limit_${i}"> I acknowledge the per-person meal cap.</label>
         </div>
       `;
-      document.getElementById('receipts').appendChild(container);
-      receiptIndex++;
-      assignTaskNumberForEntry(r_index);
+      document.getElementById('receipts').appendChild(wrap);
+
+      // listeners
+      wrap.querySelector(`select[name="type${i}"]`).addEventListener('change', ()=>handleExpenseTypeChange(i));
+      const amountEl=wrap.querySelector(`input[name="amount${i}"]`);
+      amountEl.addEventListener('input', ()=>calculateMealsAverage(i));
+      assignTaskDefault(i);
       toggleTravelSection();
     }
 
-    function assignTaskNumberForEntry(index) {
-      const profile = getProjectProfile();
-      const entry = document.getElementById(`receipt-entry-${index}`);
-      if (!entry) return;
-      const typeSel = entry.querySelector(`select[name="type${index}"]`);
-      const taskInput = entry.querySelector(`input[name="taskNumber${index}"]`);
-      if (!typeSel || !taskInput) return;
-      const selectedType = typeSel.value || "";
-      const defaultTask = (profile && profile.taskByType && profile.taskByType[selectedType]) ? profile.taskByType[selectedType] : "";
-      taskInput.value = defaultTask;
+    function assignTaskDefault(i){
+      const entry=document.getElementById(`receipt-entry-${i}`); if(!entry) return;
+      const profile=getProjectProfile();
+      const typeSel=entry.querySelector(`select[name="type${i}"]`);
+      const taskEl=entry.querySelector(`input[name="taskNumber${i}"]`);
+      const t=typeSel?.value||"";
+      taskEl.value=(profile && profile.taskByType && profile.taskByType[t]) ? profile.taskByType[t] : "";
     }
 
-    function handleExpenseTypeChange(index) {
-      calculateMealsAverage(index);
-      toggleTravelSection();
-      assignTaskNumberForEntry(index);
+    function handleExpenseTypeChange(i){
+      assignTaskDefault(i); toggleTravelSection();
+      const expenseType=document.querySelector(`#receipt-entry-${i} select[name="type${i}"]`)?.value;
+      const mealBox=document.getElementById(`meal-participants-${i}`);
+      const namesBox=document.getElementById(`participant-names-${i}`);
 
-      const expenseType = document.querySelector(`select[name="type${index}"]`).value;
-      const mealSection = document.getElementById(`meal-participants-${index}`);
-      if (expenseType === 'Meals') {
-        mealSection.classList.remove('hidden');
-        mealSection.innerHTML = `
-          <label>Number of Participants</label>
-          <input type="number" name="participants_count${index}" min="1" oninput="generateParticipantFields(${index})">
-          <div id="participant-names-${index}"></div>
-        `;
-      } else {
-        mealSection.classList.add('hidden');
-        mealSection.innerHTML = '';
-      }
-    }
-
-    function generateParticipantFields(index) {
-      const count = parseInt(document.querySelector(`input[name="participants_count${index}"]`).value, 10);
-      const namesContainer = document.getElementById(`participant-names-${index}`);
-      namesContainer.innerHTML = '';
-      if (count > 0) {
-        let fieldsHTML = '<label>Participant Names</label>';
-        for (let i = 0; i < count; i++) {
-          fieldsHTML += `<input type="text" name="participant_${index}_name_${i}" placeholder="Participant ${i+1}" required>`;
-        }
-        namesContainer.innerHTML = fieldsHTML;
-      }
-      calculateMealsAverage(index);
-    }
-
-    function calculateMealsAverage(index) {
-      const messageDiv = document.getElementById(`pp-message-${index}`);
-      const ackBox = document.getElementById(`ack-box-${index}`);
-      const ackCheckbox = document.getElementById(`ack-checkbox-${index}`);
-      const expenseType = document.querySelector(`select[name="type${index}"]`).value;
-      if (expenseType !== 'Meals') {
-        messageDiv.className = 'pp-message';
-        messageDiv.innerText = '';
-        ackBox.classList.add('hidden');
-        ackCheckbox.required = false;
-        return;
-      }
-      const amountInput = document.querySelector(`input[name="amount${index}"]`);
-      const participantsInput = document.querySelector(`input[name="participants_count${index}"]`);
-      if (!amountInput || !participantsInput) { 
-        ackBox.classList.add('hidden'); 
-        ackCheckbox.required = false; 
-        return; 
-      }
-      const amount = parseFloat(amountInput.value);
-      const participants = parseInt(participantsInput.value, 10);
-      if (amount > 0 && participants > 0) {
-        const average = amount / participants;
-        messageDiv.innerText = `Per-person average: ${average.toFixed(2)}`;
-        if (average > 60) {
-          messageDiv.className = 'pp-message pp-warning';
-          messageDiv.innerText += ` (Note: This exceeds the institutional regulatory limit.)`;
-          ackBox.classList.remove('hidden');
-          ackCheckbox.required = true;
-        } else {
-          messageDiv.className = 'pp-message pp-ok';
-          ackBox.classList.add('hidden');
-          ackCheckbox.required = false;
-        }
-      } else {
-        messageDiv.innerText = '';
-        ackBox.classList.add('hidden');
-        ackCheckbox.required = false;
+      if(expenseType==='Meals'){
+        mealBox.classList.remove('hidden');
+        const countEl=mealBox.querySelector(`input[name="participants_count${i}"]`);
+        countEl.oninput=()=>{
+          const n=parseInt(countEl.value||'0',10); namesBox.innerHTML='';
+          if(n>0){
+            let h='<label>List participant names</label>';
+            for(let k=0;k<n;k++) h+=`<input type="text" name="participant_${i}_name_${k}" placeholder="Participant ${k+1}" required />`;
+            namesBox.innerHTML=h;
+          }
+          calculateMealsAverage(i);
+        };
+      }else{
+        mealBox.classList.add('hidden'); namesBox.innerHTML='';
+        const pp=document.getElementById(`pp-message-${i}`); const ack=document.getElementById(`ack-box-${i}`);
+        pp.className='pp-message'; pp.textContent=''; ack.classList.add('hidden');
+        document.getElementById(`ack-checkbox-${i}`).required=false;
       }
     }
 
-    function toggleTravelSection() {
-      const entries = Array.from(document.querySelectorAll('.receipt-entry'));
-      const anyTravel = entries.some((entry, idx) => {
-        const sel = entry.querySelector(`select[name="type${idx}"]`);
-        return sel && sel.value === 'Travel';
+    function calculateMealsAverage(i){
+      const msg=document.getElementById(`pp-message-${i}`);
+      const ack=document.getElementById(`ack-box-${i}`);
+      const ackCb=document.getElementById(`ack-checkbox-${i}`);
+      const entry=document.getElementById(`receipt-entry-${i}`);
+      const typ=entry.querySelector(`select[name="type${i}"]`)?.value;
+      if(typ!=='Meals'){ msg.textContent=''; msg.className='pp-message'; ack.classList.add('hidden'); ackCb.required=false; return; }
+
+      const amt=parseFloat(entry.querySelector(`input[name="amount${i}"]`)?.value||'0');
+      const cnt=parseInt(entry.querySelector(`input[name="participants_count${i}"]`)?.value||'0',10);
+      if(amt>0 && cnt>0){
+        const avg=amt/cnt; msg.textContent=`Per-person average: ${avg.toFixed(2)}`;
+        if(avg>60){ msg.className='pp-message pp-warning'; ack.classList.remove('hidden'); ackCb.required=true; }
+        else{ msg.className='pp-message pp-ok'; ack.classList.add('hidden'); ackCb.required=false; }
+      }else{ msg.textContent=''; msg.className='pp-message'; ack.classList.add('hidden'); ackCb.required=false; }
+    }
+
+    function toggleTravelSection(){
+      const entries=[...document.querySelectorAll('.receipt')];
+      const anyTravel=entries.some((wrap, idx)=>{
+        const sel=wrap.querySelector(`select[name="type${idx}"]`); return sel && sel.value==='Travel';
       });
-      const travel = document.getElementById('travelSection');
-      const radios = document.querySelectorAll('input[name="planeReason"]');
-      const exceptionBox = document.getElementById('travelExceptionBox');
-      if (anyTravel) {
-        travel.classList.remove('hidden');
-        const selected = Array.from(radios).find(r => r.checked)?.value || 'Train';
-        exceptionBox.classList.toggle('hidden', selected !== 'Exception');
-      } else {
-        travel.classList.add('hidden');
-      }
+      const travel=document.getElementById('travelSection');
+      travel.classList.toggle('hidden', !anyTravel);
     }
-
-    document.addEventListener('change', (e) => {
-      if (e.target && e.target.name === 'planeReason') {
-        document.getElementById('travelExceptionBox')
-          .classList.toggle('hidden', e.target.value !== 'Exception');
+    document.addEventListener('change', (e)=>{
+      if(e.target?.name==='planeReason'){
+        document.getElementById('travelExceptionBox').classList.toggle('hidden', e.target.value!=='Exception');
       }
     });
 
-    function updateProgress(percent, message) {
-      const bar = document.getElementById('progressBar');
-      const box = document.getElementById('progressContainer');
-      box.classList.remove('hidden');
-      bar.style.width = percent + '%';
-      bar.textContent = message || '';
-    }
+    // --------- BANK UI (gray-out + unfurl + validation) ---------
+    let ibanEl, ibanMsg, acctEl, acctMsg, bicGroupEl, bicEl, bicHintEl, bankAddrEl, bankAddrMsgEl;
+    function initBankBlock(){
+      ibanEl=document.getElementById('ibanInput');
+      ibanMsg=document.getElementById('ibanValidation');
+      acctEl=document.getElementById('accountInput');
+      acctMsg=document.getElementById('acctValidation');
+      bicGroupEl=document.getElementById('bicGroup');
+      bicEl=document.getElementById('bankCodeInput');
+      bicHintEl=document.getElementById('bicHint');
+      bankAddrEl=document.getElementById('bankAddressInput');
+      bankAddrMsgEl=document.getElementById('bankAddressValidation');
 
-    function uint8ArrayToBase64(bytes) {
-      let binary = '';
-      const chunk = 0x8000;
-      for (let i = 0; i < bytes.length; i += chunk) {
-        const sub = bytes.subarray(i, i + chunk);
-        binary += String.fromCharCode.apply(null, sub);
-      }
-      return btoa(binary);
-    }
-
-// ===== Bank UI (unfurl logic + validation + gray-out the other field) =====
-
-let ibanEl, ibanMsg, acctEl, acctMsg, bicGroupEl, bicEl, bicHintEl, bankAddrEl, bankAddrMsgEl;
-
-function initBankBlock() {
-  ibanEl        = document.getElementById('ibanInput');
-  ibanMsg       = document.getElementById('ibanValidation');
-  acctEl        = document.getElementById('accountInput');
-  acctMsg       = document.getElementById('acctValidation');
-  bicGroupEl    = document.getElementById('bicGroup');
-  bicEl         = document.getElementById('bankCodeInput');
-  bicHintEl     = document.getElementById('bicHint');
-  bankAddrEl    = document.getElementById('bankAddressInput');
-  bankAddrMsgEl = document.getElementById('bankAddressValidation');
-
-    // remember original placeholders so we can restore them
-  ibanEl.dataset.originalPlaceholder = ibanEl.placeholder || '';
-  acctEl.dataset.originalPlaceholder = acctEl.placeholder || '';
-
-  if (ibanEl) {
-    ibanEl.addEventListener('input', () => {
-      ibanEl.value = (ibanEl.value || '').toUpperCase().replace(/\s+/g,'');
-      updateBankUI('iban');
-    });
-    // If the user focuses IBAN with nothing in either field, prefer IBAN path
-    ibanEl.addEventListener('focus', () => updateBankUI('iban'));
-  }
-  if (acctEl) {
-    acctEl.addEventListener('input', () => {
-      // keep light normalization only; account numbers can be alphanum with spaces/dashes
-      updateBankUI('acct');
-    });
-    acctEl.addEventListener('focus', () => updateBankUI('acct'));
-  }
-  if (bicEl) {
-    bicEl.addEventListener('input', () => {
-      bicEl.value = (bicEl.value || '').toUpperCase().replace(/\s+/g,'');
-    });
-  }
-  updateBankUI(); // initial
-}
-
-function updateBankUI(prefer = null) {
-  const iban = (ibanEl?.value || '').toUpperCase();
-  const acct = (acctEl?.value || '').trim();
-
-  const usingIBAN = iban.length > 0;
-  const usingAcct = acct.length > 0;
-
-  // Choose which path is "active"
-  // - If one has content, that one is active.
-  // - If both empty, use "prefer" hint (from focus), else none.
-  let active = null;
-  if (usingIBAN && !usingAcct) active = 'iban';
-  else if (!usingIBAN && usingAcct) active = 'acct';
-  else if (usingIBAN && usingAcct) {
-    // If both somehow have content, prefer the last interacted field
-    active = prefer || 'iban';
-  } else {
-    active = prefer; // could be null if neither focused/typed yet
-  }
-
-  // helper to apply grey + placeholder logic
-  function setGreyState(el, shouldGrey) {
-    if (!el) return;
-    el.disabled = shouldGrey;
-    el.classList.toggle('muted', shouldGrey);
-
-    // hide example when greyed; restore when active
-    const orig = el.dataset.originalPlaceholder || '';
-    if (shouldGrey) {
-      el.placeholder = '';
-    } else {
-      el.placeholder = orig;
-    }
-  }
-
-  // Grey-out the non-active input when the other has content
-  if (active === 'iban') {
-    setGreyState(acctEl, usingIBAN);  // account greys if IBAN has content
-    setGreyState(ibanEl, false);
-  } else if (active === 'acct') {
-    setGreyState(ibanEl, usingAcct);  // IBAN greys if Account has content
-    setGreyState(acctEl, false);
-  } else {
-    // neither chosen yet
-    setGreyState(ibanEl, false);
-    setGreyState(acctEl, false);
-  }
-
-
-  // Validation messages
-  if (usingIBAN) {
-    try {
-      ibanMsg.textContent = IBAN.isValid(iban) ? 'IBAN looks valid.' : 'IBAN format may be invalid.';
-    } catch { ibanMsg.textContent = ''; }
-  } else {
-    ibanMsg.textContent = '';
-  }
-
-  if (usingAcct) {
-    const ok = /^[0-9A-Za-z \-]{4,30}$/.test(acct);
-    acctMsg.textContent = ok ? '' : 'Use 4–30 digits/letters (spaces and - allowed).';
-  } else {
-    acctMsg.textContent = '';
-  }
-
-  // Unfurl BIC if: non-CH IBAN OR Account # in use
-  const isSwissIBAN = usingIBAN && iban.startsWith('CH');
-  const needBIC = (usingIBAN && !isSwissIBAN) || usingAcct;
-
-  bicGroupEl.classList.toggle('hidden', !needBIC);
-  if (bicEl) bicEl.required = !!needBIC;
-  bicHintEl.textContent = needBIC
-    ? 'It looks like your bank account is outside Switzerland and requires a BIC/SWIFT code.'
-    : '';
-
-  // Bank address hint is enforced by pattern; no extra message needed here.
-  bankAddrMsgEl.textContent = '';
-}
-
-    // ---------------------
-    // OCR: Scan for totals
-    // ---------------------
-    async function scanReceipt(index) {
-      const msg = document.getElementById(`scan-msg-${index}`);
-      msg.textContent = '';
-
-      const entry = document.getElementById(`receipt-entry-${index}`);
-      const fileInput = entry?.querySelector(`input[name="receiptFile${index}"]`);
-      if (!fileInput || fileInput.files.length === 0) { msg.textContent = 'Please choose a receipt file first.'; return; }
-      const file = fileInput.files[0];
-
-      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-        msg.textContent = 'For scanning, please upload a JPG/PNG (PDF scan coming soon).'; return;
-      }
-      if (!file.type.startsWith('image/')) {
-        msg.textContent = 'Unsupported file type. Please upload a JPG or PNG.'; return;
-      }
-
-      const scanButton = entry.querySelector('button[onclick^="scanReceipt("]');
-      const prevLabel = scanButton.textContent;
-      scanButton.disabled = true;
-      scanButton.textContent = 'Scanning… (this may take ~5–10s)';
-      msg.textContent = '';
-
-      try {
-        const dataUrl = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
+      if(ibanEl){
+        ibanEl.addEventListener('input', ()=>{
+          ibanEl.value=(ibanEl.value||'').toUpperCase().replace(/\s+/g,'');
+          updateBankUI('iban');
         });
-
-        const { createWorker } = Tesseract;
-        const worker = await createWorker('eng', 1, {
-          logger: m => {
-            if (m.status === 'recognizing text' && m.progress != null) {
-              msg.textContent = `Scanning… ${Math.round(m.progress * 100)}%`;
-            }
-          }
-        });
-
-        const result = await worker.recognize(dataUrl);
-        await worker.terminate();
-
-        const text = (result && result.data && result.data.text) ? result.data.text : '';
-        if (!text.trim()) { msg.textContent = 'No text detected. Try a clearer photo.'; return; }
-
-        const { currencyGuess, amountGuess, debugNote } = extractTotalFromText(text);
-        const currencyInput = entry.querySelector(`input[name="currency${index}"]`);
-        const amountInput = entry.querySelector(`input[name="amount${index}"]`);
-
-        if (currencyGuess) currencyInput.value = currencyGuess;
-        if (amountGuess != null) amountInput.value = amountGuess.toFixed(2);
-
-        if (amountGuess == null) {
-          msg.textContent = 'Couldn’t confidently find a total. Please enter it manually.';
-        } else {
-          msg.textContent = `Suggested total: ${currencyInput.value || ''} ${amountGuess.toFixed(2)}${debugNote ? ' • ' + debugNote : ''}`;
-          calculateMealsAverage(index);
-        }
-      } catch (err) {
-        console.error('OCR error:', err);
-        msg.textContent = 'Scan failed. Try a clearer image.';
-      } finally {
-        scanButton.disabled = false;
-        scanButton.textContent = prevLabel;
+        ibanEl.addEventListener('focus', ()=>updateBankUI('iban'));
       }
+      if(acctEl){
+        acctEl.addEventListener('input', ()=>updateBankUI('acct'));
+        acctEl.addEventListener('focus', ()=>updateBankUI('acct'));
+      }
+      if(bicEl){ bicEl.addEventListener('input', ()=>{ bicEl.value=(bicEl.value||'').toUpperCase().replace(/\s+/g,''); }); }
+      updateBankUI();
+    }
+    function gray(el, on){
+      if(!el) return;
+      el.disabled = on;
+      // clear placeholder when gray; restore when active
+      if(on){ el.dataset.ph = el.getAttribute('placeholder')||''; el.setAttribute('placeholder',''); el.classList.add('muted-placeholder'); }
+      else { if(el.dataset.ph!=null) el.setAttribute('placeholder', el.dataset.ph); el.classList.remove('muted-placeholder'); }
+    }
+    function updateBankUI(prefer=null){
+      const iban=(ibanEl?.value||'').toUpperCase();
+      const acct=(acctEl?.value||'').trim();
+      const usingIBAN=iban.length>0, usingAcct=acct.length>0;
+
+      let active=null;
+      if(usingIBAN && !usingAcct) active='iban';
+      else if(!usingIBAN && usingAcct) active='acct';
+      else if(usingIBAN && usingAcct) active=prefer||'iban';
+      else active=prefer; // could be null
+
+      gray(acctEl, active==='iban' && usingIBAN);
+      gray(ibanEl, active==='acct' && usingAcct);
+
+      // validation text
+      if(usingIBAN){
+        try{ ibanMsg.textContent = IBAN.isValid(iban) ? 'IBAN looks valid.' : 'IBAN format may be invalid.'; }
+        catch{ ibanMsg.textContent=''; }
+      }else{ ibanMsg.textContent=''; }
+
+      if(usingAcct){
+        const ok=/^[0-9A-Za-z \-]{4,30}$/.test(acct);
+        acctMsg.textContent = ok ? '' : 'Use 4–30 digits/letters (spaces and - allowed).';
+      }else{ acctMsg.textContent=''; }
+
+      const isSwissIBAN = usingIBAN && iban.startsWith('CH');
+      const needBIC = (usingIBAN && !isSwissIBAN) || usingAcct;
+      bicGroupEl.classList.toggle('hidden', !needBIC);
+      if(bicEl) bicEl.required=!!needBIC;
+      bicHintEl.textContent = needBIC ? 'Required for non-Swiss IBAN or when using an account number.' : '';
+
+      bankAddrMsgEl.textContent='';
     }
 
-    function extractTotalFromText(text) {
-      const t = text.replace(/\u00A0/g, ' ').replace(/[,，]/g, '.');
-      const currencyTokens = ['CHF', 'SFR', 'FR', 'EUR', '€', 'USD', '\\$','GBP','£'];
-      const totalHints = /(grand\s*total|amount\s*due|total\s*to\s*pay|total|balance\s*due)/i;
-      const lines = t.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    // --------- OCR (images) ---------
+    async function scanReceipt(index){
+      const msg=document.getElementById(`scan-msg-${index}`); msg.textContent='';
+      const entry=document.getElementById(`receipt-entry-${index}`);
+      const file=entry?.querySelector(`input[name="receiptFile${index}"]`)?.files?.[0];
+      if(!file){ msg.textContent='Please choose a receipt file first.'; return; }
+      if(file.type==='application/pdf' || file.name.toLowerCase().endsWith('.pdf')){ msg.textContent='For scanning, upload JPG/PNG (PDF soon).'; return; }
+      if(!file.type.startsWith('image/')){ msg.textContent='Unsupported file type (use JPG/PNG).'; return; }
 
-      let bestCurrency = null, bestAmount = null;
-      const moneyOnLine = (line) => {
-        const moneyRegex = new RegExp(`(?:(${currencyTokens.join('|')})\\s*)?(\\d{1,3}(?:\\.\\d{3})*(?:\\.\\d{2})|\\d+\\.\\d{2})(?:\\s*(${currencyTokens.join('|')}))?`, 'i');
-        const m = line.match(moneyRegex);
-        if (!m) return null;
-        const leftCur = m[1], numStr = m[2], rightCur = m[3];
-        const cur = (leftCur || rightCur || '').toUpperCase().replace(/[^A-Z€$£]/g,'');
-        const amt = parseFloat(numStr);
-        return { cur, amt };
+      const btn=entry.querySelector('button.secondary'); const prev=btn.textContent;
+      btn.disabled=true; btn.textContent='Scanning…';
+
+      try{
+        const dataUrl=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); });
+        const { createWorker }=Tesseract;
+        const worker=await createWorker('eng',1,{ logger:m=>{ if(m.status==='recognizing text' && m.progress!=null) msg.textContent=`Scanning… ${Math.round(m.progress*100)}%`; }});
+        const result=await worker.recognize(dataUrl); await worker.terminate();
+        const text=(result?.data?.text)||'';
+        if(!text.trim()){ msg.textContent='No text detected. Try a clearer photo.'; return; }
+        const { currencyGuess, amountGuess, debugNote }=extractTotalFromText(text);
+        const curEl=entry.querySelector(`input[name="currency${index}"]`);
+        const amtEl=entry.querySelector(`input[name="amount${index}"]`);
+        if(currencyGuess) curEl.value=currencyGuess;
+        if(amountGuess!=null) amtEl.value=amountGuess.toFixed(2);
+        msg.textContent = amountGuess==null ? 'Couldn’t confidently find a total.' :
+          `Suggested total: ${curEl.value||''} ${amountGuess.toFixed(2)}${debugNote?' • '+debugNote:''}`;
+        calculateMealsAverage(index);
+      }catch(err){ console.error(err); msg.textContent='Scan failed. Try a clearer image.'; }
+      finally{ btn.disabled=false; btn.textContent=prev; }
+    }
+    function extractTotalFromText(text){
+      const t=text.replace(/\u00A0/g,' ').replace(/[,，]/g,'.');
+      const currencyTokens=['CHF','SFR','FR','EUR','€','USD','\\$','GBP','£'];
+      const totalHints=/(grand\s*total|amount\s*due|total\s*to\s*pay|total|balance\s*due)/i;
+      const lines=t.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+      const moneyOnLine=line=>{
+        const re=new RegExp(`(?:(${currencyTokens.join('|')})\\s*)?(\\d{1,3}(?:\\.\\d{3})*(?:\\.\\d{2})|\\d+\\.\\d{2})(?:\\s*(${currencyTokens.join('|')}))?`,'i');
+        const m=line.match(re); if(!m) return null;
+        const cur=(m[1]||m[3]||'').toUpperCase().replace(/[^A-Z€$£]/g,''); const amt=parseFloat(m[2]); return {cur,amt};
       };
-
-      for (const line of lines) {
-        if (totalHints.test(line)) {
-          const found = moneyOnLine(line);
-          if (found) {
-            bestCurrency = normalizeCurrency(found.cur) || bestCurrency;
-            bestAmount = found.amt;
-            return { currencyGuess: bestCurrency || guessCurrencyFromText(t) || 'CHF', amountGuess: bestAmount, debugNote: 'from “total” line' };
-          }
-        }
-      }
-      let maxFound = { amt: -1, cur: null };
-      for (const line of lines) {
-        const found = moneyOnLine(line);
-        if (found && found.amt > maxFound.amt) maxFound = found;
-      }
-      if (maxFound.amt > 0) {
-        bestCurrency = normalizeCurrency(maxFound.cur) || guessCurrencyFromText(t) || 'CHF';
-        bestAmount = maxFound.amt;
-        return { currencyGuess: bestCurrency, amountGuess: bestAmount, debugNote: 'largest amount found' };
-      }
-      return { currencyGuess: guessCurrencyFromText(t) || null, amountGuess: null, debugNote: null };
+      for(const line of lines){ if(totalHints.test(line)){ const f=moneyOnLine(line); if(f) return {currencyGuess:normalizeCurrency(f.cur)||guessCurrencyFromText(t)||'CHF', amountGuess:f.amt, debugNote:'from “total” line'}; } }
+      let max={amt:-1,cur:null}; for(const line of lines){ const f=moneyOnLine(line); if(f && f.amt>max.amt) max=f; }
+      if(max.amt>0) return {currencyGuess:normalizeCurrency(max.cur)||guessCurrencyFromText(t)||'CHF', amountGuess:max.amt, debugNote:'largest amount found'};
+      return {currencyGuess:guessCurrencyFromText(t)||null, amountGuess:null, debugNote:null};
     }
-
-    function normalizeCurrency(cur) {
-      if (!cur) return null;
-      const c = cur.toUpperCase();
-      if (c.includes('CHF') || c.includes('SFR') || c === 'FR') return 'CHF';
-      if (c.includes('EUR') || c.includes('€')) return 'EUR';
-      if (c.includes('USD') || c.includes('$')) return 'USD';
-      if (c.includes('GBP') || c.includes('£')) return 'GBP';
+    function normalizeCurrency(cur){
+      if(!cur) return null; const c=cur.toUpperCase();
+      if(c.includes('CHF')||c.includes('SFR')||c==='FR') return 'CHF';
+      if(c.includes('EUR')||c.includes('€')) return 'EUR';
+      if(c.includes('USD')||c.includes('$')) return 'USD';
+      if(c.includes('GBP')||c.includes('£')) return 'GBP';
       return null;
     }
-    function guessCurrencyFromText(text) {
-      const u = text.toUpperCase();
-      if (u.includes('CHF') || u.includes('SFR')) return 'CHF';
-      if (u.includes('EUR') || u.includes('€')) return 'EUR';
-      if (u.includes('USD') || u.includes('$')) return 'USD';
-      if (u.includes('GBP') || u.includes('£')) return 'GBP';
+    function guessCurrencyFromText(u){
+      const t=u.toUpperCase();
+      if(t.includes('CHF')||t.includes('SFR')) return 'CHF';
+      if(t.includes('EUR')||t.includes('€')) return 'EUR';
+      if(t.includes('USD')||t.includes('$')) return 'USD';
+      if(t.includes('GBP')||t.includes('£')) return 'GBP';
       return null;
     }
 
-    // Submit
-    document.getElementById('reimbursementForm').addEventListener('submit', async function (e) {
+    // --------- SUBMIT ---------
+    document.getElementById('reimbursementForm').addEventListener('submit', onSubmit);
+
+    async function onSubmit(e){
       e.preventDefault();
-      const form = e.target;
-      const ref = 'REF' + Date.now();
-      const referenceBox = document.getElementById('referenceNumber');
-      const progressContainer = document.getElementById('progressContainer');
-      const submitButton = form.querySelector('button[type="submit"]');
-      submitButton.disabled = true;
-      progressContainer.classList.remove('hidden');
-      updateProgress(0, 'Starting...');
+      const isExternal = employeeStatus.value==='no';
 
-      // ---- Banking guardrails (frontend hard stops) for EXTERNAL only ----
-      const isExternal = (document.getElementById('employeeStatus').value === 'no');
-      if (isExternal) {
-        const iban = (document.getElementById('ibanInput').value || '').toUpperCase().replace(/\s+/g,'');
-        const acct = (document.getElementById('accountInput').value || '').trim();
-        const bic  = (document.getElementById('bankCodeInput')?.value || '').toUpperCase().replace(/\s+/g,'');
-        const bankAddr = (document.getElementById('bankAddressInput').value || '').trim();
+      // Bank guardrails for external
+      if(isExternal){
+        const iban=(document.getElementById('ibanInput').value||'').toUpperCase().replace(/\s+/g,'');
+        const acct=(document.getElementById('accountInput').value||'').trim();
+        const bic =(document.getElementById('bankCodeInput')?.value||'').toUpperCase().replace(/\s+/g,'');
+        const bankAddr=(document.getElementById('bankAddressInput').value||'').trim();
 
-        const usingIBAN = iban.length > 0;
-        const usingAcct = acct.length > 0;
-        const isSwissIBAN = usingIBAN && iban.startsWith('CH');
-        const needBIC = (usingIBAN && !isSwissIBAN) || usingAcct;
+        const usingIBAN=iban.length>0, usingAcct=acct.length>0, isSwissIBAN=usingIBAN && iban.startsWith('CH');
+        const needBIC=(usingIBAN && !isSwissIBAN) || usingAcct;
 
-        // Must provide either IBAN or Account #
-        if (!usingIBAN && !usingAcct) {
-          alert('Please provide either an IBAN or a Bank Account Number.');
-          submitButton.disabled = false; progressContainer.classList.add('hidden'); return;
+        if(!usingIBAN && !usingAcct){ alert('Please provide either an IBAN or a Bank Account Number.'); return; }
+        if(usingIBAN && !IBAN.isValid(iban)){ alert('The IBAN format looks invalid.'); return; }
+        if(usingAcct && !/^[0-9A-Za-z \-]{4,30}$/.test(acct)){ alert('Bank Account Number must be 4–30 characters.'); return; }
+        if(needBIC && !/^[A-Za-z]{4}[A-Za-z]{2}[A-Za-z0-9]{2}([A-Za-z0-9]{3})?$/.test(bic)){
+          alert('BIC/SWIFT is required (8 or 11 chars) for non-Swiss IBANs or when using an Account Number.');
+          return;
         }
-        // If IBAN provided, format must be valid
-        if (usingIBAN && !IBAN.isValid(iban)) {
-          alert('The IBAN format looks invalid.');
-          submitButton.disabled = false; progressContainer.classList.add('hidden'); return;
-        }
-        // If Account # provided, basic format
-        if (usingAcct && !/^[0-9A-Za-z \-]{4,30}$/.test(acct)) {
-          alert('Bank Account Number must be 4–30 characters (digits/letters, spaces and - allowed).');
-          submitButton.disabled = false; progressContainer.classList.add('hidden'); return;
-        }
-        // If non-CH IBAN OR Account #, BIC is required and must match regex
-        if (needBIC && !/^[A-Za-z]{4}[A-Za-z]{2}[A-Za-z0-9]{2}([A-Za-z0-9]{3})?$/.test(bic)) {
-          alert('BIC/SWIFT is required (8 or 11 characters) for non-Swiss IBANs or when using a Bank Account Number.');
-          submitButton.disabled = false; progressContainer.classList.add('hidden'); return;
-        }
-        // Bank name/address must contain a number (street number)
-        if (!/.*\d.*/.test(bankAddr)) {
-          alert('Please include a street number in the Bank name/address.');
-          submitButton.disabled = false; progressContainer.classList.add('hidden'); return;
-        }
+        if(!/.*\d.*/.test(bankAddr)){ alert('Please include a street number in the bank name/address.'); return; }
       }
-      // -------------------------------------------------------------------
 
-      try {
-        updateProgress(10, 'Processing & generating participant page...');
-        const mergedPdf = await PDFDocument.create();
-        const font = await mergedPdf.embedFont(StandardFonts.Helvetica);
+      const ref='REF'+Date.now();
+      const progress=document.getElementById('progressContainer');
+      const btn=e.target.querySelector('button[type="submit"]');
+      btn.disabled=true; progress.classList.remove('hidden'); updateProgress(5,'Start');
 
-        // participant page (if any Meals)
-        let hasMealExpenses = false;
-        const allParticipants = [];
-        const receiptEntries = document.querySelectorAll('.receipt-entry');
-        receiptEntries.forEach((entry, index) => {
-          const expenseType = entry.querySelector(`select[name="type${index}"]`).value;
-          if (expenseType === 'Meals') {
-            hasMealExpenses = true;
-            const participantCount = parseInt(entry.querySelector(`input[name="participants_count${index}"]`)?.value || '0', 10);
-            for (let i = 0; i < participantCount; i++) {
-              const nameInput = entry.querySelector(`input[name="participant_${index}_name_${i}"]`);
-              if (nameInput && nameInput.value) allParticipants.push(nameInput.value);
+      try{
+        updateProgress(15,'Preparing attachments…');
+        const mergedPdf=await PDFDocument.create();
+        const font=await mergedPdf.embedFont(StandardFonts.Helvetica);
+
+        // Participant page if any Meals
+        let hasMeals=false; const allNames=[];
+        document.querySelectorAll('.receipt').forEach((wrap, idx)=>{
+          const typ=wrap.querySelector(`select[name="type${idx}"]`)?.value;
+          if(typ==='Meals'){
+            hasMeals=true;
+            const cnt=parseInt(wrap.querySelector(`input[name="participants_count${idx}"]`)?.value||'0',10);
+            for(let i=0;i<cnt;i++){
+              const v=wrap.querySelector(`input[name="participant_${idx}_name_${i}"]`)?.value;
+              if(v) allNames.push(v);
             }
           }
         });
-
-        if (hasMealExpenses) {
-          let participantsPage = mergedPdf.addPage();
-          const { height } = participantsPage.getSize();
-          let y = height - 70;
-          participantsPage.drawText('Meal Participants', { x: 50, y: y, font, size: 24, color: rgb(0, 0, 0) });
-          y -= 40;
-          allParticipants.forEach(name => {
-            if (y < 50) {
-              participantsPage = mergedPdf.addPage();
-              y = height - 70;
-            }
-            participantsPage.drawText(`- ${name}`, { x: 70, y: y, font, size: 12, color: rgb(0, 0, 0) });
-            y -= 20;
-          });
+        if(hasMeals){
+          let page=mergedPdf.addPage(); const { height }=page.getSize(); let y=height-70;
+          page.drawText('Meal Participants', {x:50,y, font,size:24, color:rgb(0,0,0)}); y-=40;
+          allNames.forEach(n=>{ if(y<50){ page=mergedPdf.addPage(); y=height-70; }
+            page.drawText(`- ${n}`, {x:70,y, font,size:12, color:rgb(0,0,0)}); y-=20; });
         }
 
-        updateProgress(40, 'Merging receipts...');
-        const A4 = { w: 595.28, h: 841.89 };
-        for (const entry of receiptEntries) {
-          const fileInput = entry.querySelector('input[type="file"]');
-          if (!fileInput || fileInput.files.length === 0) continue;
-
-          const file = fileInput.files[0];
-          const nameLower = file.name.toLowerCase();
-          const isPdf = file.type === 'application/pdf' || nameLower.endsWith('.pdf');
-
-          if (isPdf) {
-            const bytes = await file.arrayBuffer();
-            const srcPdf = await PDFDocument.load(bytes);
-            const pages = await mergedPdf.copyPages(srcPdf, srcPdf.getPageIndices());
-            pages.forEach(p => mergedPdf.addPage(p));
-          } else if (file.type.startsWith('image/')) {
-            const imgBytes = await file.arrayBuffer();
-            let img;
-            if (file.type === 'image/jpeg' || nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg')) {
-              img = await mergedPdf.embedJpg(imgBytes);
-            } else {
-              img = await mergedPdf.embedPng(imgBytes);
-            }
-
-            const imgW = img.width;
-            const imgH = img.height;
-
-            const scale = Math.min(A4.w / imgW, A4.h / imgH);
-            const drawW = imgW * scale;
-            const drawH = imgH * scale;
-
-            const page = mergedPdf.addPage([A4.w, A4.h]);
-            const x = (A4.w - drawW) / 2;
-            const y = (A4.h - drawH) / 2;
-
-            page.drawImage(img, { x, y, width: drawW, height: drawH });
-          } else {
-            console.warn('Unsupported file type:', file.type || nameLower);
+        updateProgress(40,'Merging receipts…');
+        const A4={w:595.28,h:841.89};
+        for(const wrap of document.querySelectorAll('.receipt')){
+          const idx=[...document.querySelectorAll('.receipt')].indexOf(wrap);
+          const f=wrap.querySelector(`input[name="receiptFile${idx}"]`)?.files?.[0];
+          if(!f) continue;
+          const name=f.name.toLowerCase(); const isPdf=f.type==='application/pdf'||name.endsWith('.pdf');
+          if(isPdf){
+            const bytes=await f.arrayBuffer(); const src=await PDFDocument.load(bytes);
+            const pages=await mergedPdf.copyPages(src, src.getPageIndices()); pages.forEach(p=>mergedPdf.addPage(p));
+          }else if(f.type.startsWith('image/')){
+            const imgBytes=await f.arrayBuffer();
+            const img = (f.type==='image/jpeg'||name.endsWith('.jpg')||name.endsWith('.jpeg')) ? await mergedPdf.embedJpg(imgBytes) : await mergedPdf.embedPng(imgBytes);
+            const scale=Math.min(A4.w/img.width, A4.h/img.height);
+            const page=mergedPdf.addPage([A4.w,A4.h]);
+            const w=img.width*scale, h=img.height*scale;
+            page.drawImage(img, {x:(A4.w-w)/2, y:(A4.h-h)/2, width:w, height:h});
           }
         }
-        
-        updateProgress(70, 'Preparing data for submission...');
-        const mergedPdfBytes = await mergedPdf.save();
-        const mergedPdfBase64 = uint8ArrayToBase64(mergedPdfBytes);
 
-        const fd = new FormData();
-        const formData = new FormData(form);
-        for (const [k, v] of formData.entries()) { if (typeof v !== 'object') fd.append(k, v); }
-        fd.append("reference", ref);
-        fd.append("receiptCount", receiptIndex);
-        fd.append("fileBase64", mergedPdfBase64);
-        fd.append("fileName", `Consolidated_Receipts_${ref}.pdf`);
-        fd.append("fileMimeType", "application/pdf");
-        
-        updateProgress(90, 'Sending...');
-        fetch(SCRIPT_URL, { method: "POST", body: fd, mode: 'no-cors' })
-          .catch(err => {
-            console.error("Fetch failed to send:", err);
-            submitButton.disabled = false; 
-            progressContainer.classList.add('hidden');
-            referenceBox.innerText = '❌ Submission failed. Please check your internet connection and try again.';
-          });
-        
-        updateProgress(100, '');
-        progressContainer.classList.add('hidden');
+        updateProgress(70,'Encoding…');
+        const mergedPdfBase64=uint8ArrayToBase64(await mergedPdf.save());
+
+        // Build POST payload (skip File inputs; we send merged PDF instead)
+        const fd=new FormData(); const raw=new FormData(e.target);
+        for(const [k,v] of raw.entries()){ if(typeof v!=='object') fd.append(k,v); }
+        fd.append('reference', ref);
+        fd.append('receiptCount', document.querySelectorAll('.receipt').length);
+        fd.append('fileBase64', mergedPdfBase64);
+        fd.append('fileName', `Consolidated_Receipts_${ref}.pdf`);
+        fd.append('fileMimeType','application/pdf');
+
+        updateProgress(90,'Sending…');
+        fetch(SCRIPT_URL, { method:'POST', body:fd, mode:'no-cors' }).catch(()=>{});
+        updateProgress(100,'Done');
 
         saveDefaultsIfWanted();
-        referenceBox.innerHTML = `✅ Your request has been sent successfully!<br><br><strong>PLEASE SAVE YOUR REFERENCE NUMBER:</strong><br><span style="font-size: 1.2em; background-color: #d4edda; padding: 5px 10px; border-radius: 4px;">${ref}</span><br><br>You will receive a confirmation email once it has been processed.`;
-        
-        setTimeout(() => {
-          form.reset();
-          document.getElementById('receipts').innerHTML = '';
-          receiptIndex = 0;
-          handleFormDisplay();
-          toggleTravelSection();
-          updateBankUI();
+        document.getElementById('referenceNumber').innerHTML =
+          `✅ Sent!<br><strong>Save your reference:</strong><br><span style="background:#d4edda;padding:6px 10px;border-radius:6px;display:inline-block">${ref}</span>`;
+
+        setTimeout(()=>{
+          e.target.reset();
+          document.getElementById('receipts').innerHTML='';
+          receiptIndex=0;
+          handleFormDisplay(); toggleTravelSection(); updateBankUI();
+          document.getElementById('progressContainer').classList.add('hidden');
+          btn.disabled=false;
         }, 500);
 
-      } catch (error) {
-        console.error("An error occurred before sending:", error);
-        updateProgress(100, ''); 
-        progressContainer.classList.add('hidden'); 
-        referenceBox.innerText = '❌ An error occurred while preparing your files. Please try again.'; 
-        submitButton.disabled = false;
+      }catch(err){
+        console.error(err);
+        document.getElementById('referenceNumber').textContent = '❌ Error while preparing your files. Please try again.';
+        document.getElementById('progressContainer').classList.add('hidden'); btn.disabled=false;
       }
-    });
+    }
   </script>
+
 </body>
 </html>
