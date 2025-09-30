@@ -275,9 +275,8 @@
           <option value="">Select a type</option>
           ${expenseList.map(t => `<option value="${t}">${t}</option>`).join('')}
         </select>
-
-        <label>Task # (auto-filled by project/type, editable)</label>
-        <input type="text" name="taskNumber${r_index}" placeholder="e.g., 30">
+        
+        <input type="hidden" name="taskNumber${r_index}">
 
         <div id="meal-participants-${r_index}" class="meal-participants hidden"></div>
 
