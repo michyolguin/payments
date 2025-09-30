@@ -54,9 +54,10 @@
         <textarea name="reimbursementReason" rows="3" required placeholder="Why are you claiming these expenses?"></textarea>
 
         <label>Project Lead or Project Name</label>
-        <input list="projectNumbers" name="project" required autocomplete="organization">
+        <input list="projectNumbers" name="project" id="projectInput" required autocomplete="organization">
         <datalist id="projectNumbers">
           <option value="Christine LUTRINGER – AHCD 2025 – P0189">
+          <option value="Doc.CH / Health as a Form of Politics in North India – P0024">
           <option value="Vincent CHETAIL – NCCR / Migration Governance – S2334">
         </datalist>
 
@@ -124,11 +125,61 @@
 
   <script>
     // Use your currently working deployment:
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxMF5kj5Ap3fQhESi2Ie0jvccVlk0xW8FvVtuwSePXUhPJdEeY0WXgfVXExq6oQQBQwyg/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx1LisqvxBYbY8nQlr0zp0srhW1_e9q4kyfWQnuP7710DpTZS7H4yW-AM4UpBTK4sENgQ/exec";
 
     let receiptIndex = 0;
     const maxReceipts = 16;
     const { PDFDocument, rgb, StandardFonts } = PDFLib;
+
+    // -----------------------------
+    // Project → expense & task map
+    // -----------------------------
+    // EDIT HERE to add/update projects, their visible expense types, and default Task # per type.
+    const PROJECTS = {
+      // Many lines / handled later by accounting: show generic types; do not auto-assign task
+      "P0189": {
+        label: "Christine LUTRINGER – AHCD 2025 – P0189",
+        expenseTypes: ["Travel", "Accommodation", "Meals", "Supplies", "Honorarium", "Other"],
+        taskByType: {} // no defaults → leave Task # blank
+      },
+      // Simple example with explicit task lines
+      "P0024": {
+        label: "Doc.CH / Health as a Form of Politics in North India – P0024",
+        expenseTypes: ["Travel", "Accommodation", "Meals", "Supplies", "Other"],
+        taskByType: {
+          "Travel": "30",
+          "Accommodation": "31",
+          "Meals": "32",
+          "Supplies": "33",
+          "Other": "39"
+        }
+      },
+      // Keep an example third one (update later if needed)
+      "S2334": {
+        label: "Vincent CHETAIL – NCCR / Migration Governance – S2334",
+        expenseTypes: ["Travel", "Accommodation", "Meals", "Supplies", "Honorarium", "Other"],
+        taskByType: {
+          "Travel": "10",
+          "Accommodation": "11",
+          "Meals": "12",
+          "Supplies": "13",
+          "Honorarium": "14",
+          "Other": "19"
+        }
+      }
+    };
+
+    function detectProjectCode(inputValue) {
+      // Try to extract a project code like P0189 / P0024 / S2334 from the entered string
+      const m = (inputValue || "").toUpperCase().match(/\b([PS]\d{4})\b/);
+      return m ? m[1] : null;
+    }
+
+    function getProjectProfile() {
+      const raw = document.getElementById('projectInput').value.trim();
+      const code = detectProjectCode(raw);
+      return code && PROJECTS[code] ? { code, ...PROJECTS[code] } : null;
+    }
 
     // Restore remembered fields on load (safe subset: name/email/address only)
     document.addEventListener('DOMContentLoaded', () => {
@@ -168,7 +219,33 @@
         }
       }
     }
-    
+
+    // Whenever the project changes, update the expense type options and re-assign task # defaults
+    document.getElementById('projectInput').addEventListener('input', refreshExpenseTypeOptionsForAllReceipts);
+    document.getElementById('projectInput').addEventListener('change', refreshExpenseTypeOptionsForAllReceipts);
+
+    function refreshExpenseTypeOptionsForAllReceipts() {
+      const profile = getProjectProfile();
+      const entries = document.querySelectorAll('.receipt-entry');
+
+      entries.forEach((entry, idx) => {
+        const select = entry.querySelector(`select[name="type${idx}"]`);
+        if (!select) return;
+        const current = select.value;
+
+        // Rebuild options
+        const list = (profile && profile.expenseTypes?.length) ? profile.expenseTypes
+                    : ["Travel", "Accommodation", "Meals", "Supplies", "Honorarium", "Other"];
+        select.innerHTML = `<option value="">Select a type</option>` + list.map(t => `<option value="${t}">${t}</option>`).join('');
+
+        // Restore previous selection only if still valid
+        if (current && list.includes(current)) select.value = current;
+
+        // If a valid type is selected, assign task # default (or clear)
+        assignTaskNumberForEntry(idx);
+      });
+    }
+
     function addReceipt() {
       if (receiptIndex >= maxReceipts) {
         alert(`Maximum of ${maxReceipts} receipts allowed.`);
@@ -178,6 +255,13 @@
       const container = document.createElement('div');
       container.classList.add('receipt-entry');
       container.id = `receipt-entry-${r_index}`;
+
+      // Build the expense type options for current project
+      const profile = getProjectProfile();
+      const expenseList = (profile && profile.expenseTypes?.length)
+        ? profile.expenseTypes
+        : ["Travel", "Accommodation", "Meals", "Supplies", "Honorarium", "Other"];
+
       container.innerHTML = `
         <h4>Receipt ${r_index + 1}</h4>
         <label>Upload Receipt (PDF, JPG, PNG)</label>
@@ -189,13 +273,11 @@
         <label>Expense Type</label>
         <select name="type${r_index}" onchange="handleExpenseTypeChange(${r_index})" required>
           <option value="">Select a type</option>
-          <option value="Travel">Travel</option>
-          <option value="Accommodation">Accommodation</option>
-          <option value="Meals">Meals</option>
-          <option value="Supplies">Supplies</option>
-          <option value="Honorarium">Honorarium</option>
-          <option value="Other">Other</option>
+          ${expenseList.map(t => `<option value="${t}">${t}</option>`).join('')}
         </select>
+
+        <label>Task # (auto-filled by project/type, editable)</label>
+        <input type="text" name="taskNumber${r_index}" placeholder="e.g., 30">
 
         <div id="meal-participants-${r_index}" class="meal-participants hidden"></div>
 
@@ -216,12 +298,33 @@
       `;
       document.getElementById('receipts').appendChild(container);
       receiptIndex++;
+
+      // Assign initial Task # default if applicable
+      assignTaskNumberForEntry(r_index);
       toggleTravelSection();
+    }
+
+    // Assigns/clears Task # based on selected project and expense type for a specific entry
+    function assignTaskNumberForEntry(index) {
+      const profile = getProjectProfile();
+      const entry = document.getElementById(`receipt-entry-${index}`);
+      if (!entry) return;
+      const typeSel = entry.querySelector(`select[name="type${index}"]`);
+      const taskInput = entry.querySelector(`input[name="taskNumber${index}"]`);
+      if (!typeSel || !taskInput) return;
+
+      const selectedType = typeSel.value || "";
+      const defaultTask = (profile && profile.taskByType && profile.taskByType[selectedType]) ? profile.taskByType[selectedType] : "";
+
+      // If a mapping exists, fill it; if not, clear (but always user-editable)
+      taskInput.value = defaultTask;
     }
 
     function handleExpenseTypeChange(index) {
       calculateMealsAverage(index);
       toggleTravelSection();
+      assignTaskNumberForEntry(index);
+
       const expenseType = document.querySelector(`select[name="type${index}"]`).value;
       const mealSection = document.getElementById(`meal-participants-${index}`);
       if (expenseType === 'Meals') {
