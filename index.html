@@ -13,7 +13,17 @@
     .form-section, .receipt-entry { margin-bottom: 1.5rem; padding: 1.5rem; border: 1px solid #ddd; border-radius: 8px; background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     label { display: block; margin-top: 1rem; font-weight: bold; color: #555; }
     input, select, textarea { width: 100%; padding: 0.75rem; margin-top: 0.3rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-    input:disabled { background-color: #f0f0f0; cursor: not-allowed; }
+    input:disabled { background-color: #e6e8eb; cursor: not-allowed; color: #6b7280; border-color: #cbd5e1; }
+
+/* extra class we’ll toggle so it looks muted even before :disabled applies */
+.muted {
+  background-color: #e6e8eb !important;
+  color: #6b7280 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* dim the placeholder when muted (when it’s present) */
+.muted::placeholder { color: #9aa3ad; }
     button { background-color: #3498db; color: white; padding: 0.75rem 1.5rem; margin-top: 1rem; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; transition: background-color 0.3s; }
     .validation-message { font-size: 0.9em; margin-top: 0.3rem; min-height: 1em; color: #555; }
     .pp-message { margin-top: 0.5rem; font-weight: bold; min-height: 1em; }
@@ -65,24 +75,47 @@
         <textarea name="address" rows="3" autocomplete="street-address"></textarea>
       </div>
 
+      <!-- BANK DETAILS (dynamic) -->
       <div id="bankDetailsSection" class="form-section hidden">
         <h3>Bank Details</h3>
 
-        <label>IBAN</label>
-        <input type="text" name="iban" id="ibanInput" inputmode="text" autocapitalize="characters" autocomplete="off" placeholder="e.g., CH9300762011623852957">
-        <div id="ibanValidation" class="validation-message"></div>
+        <!-- Two-up layout -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div>
+            <label>IBAN</label>
+            <input type="text" name="iban" id="ibanInput"
+                   inputmode="text" autocapitalize="characters" autocomplete="off"
+                   placeholder="e.g., CH9300762011623852957">
+            <div id="ibanValidation" class="validation-message"></div>
+          </div>
 
-        <label>Bank Account Number (non-IBAN)</label>
-        <input type="text" name="accountNumber" id="accountInput" inputmode="numeric" autocomplete="off">
+          <div>
+            <label>Bank Account Number (non-IBAN)</label>
+            <input type="text" name="accountNumber" id="accountInput"
+                   inputmode="numeric" autocomplete="off"
+                   placeholder="e.g., 123456789 (4–30 chars)">
+            <div id="acctValidation" class="validation-message"></div>
+          </div>
+        </div>
 
-        <label>BIC/SWIFT Code</label>
-        <input type="text" name="bankCode"
-               pattern="[A-Za-z]{4}[A-Za-z]{2}[A-Za-z0-9]{2}([A-Za-z0-9]{3})?"
-               title="Must be a valid 8 or 11 character BIC/SWIFT code."
-               autocapitalize="characters" autocomplete="off">
+        <!-- Unfurls for non-CH IBAN OR any Bank Account # -->
+        <div id="bicGroup" class="hidden" style="margin-top: 0.75rem;">
+          <label>BIC/SWIFT Code</label>
+          <input type="text" name="bankCode" id="bankCodeInput"
+                 pattern="[A-Za-z]{4}[A-Za-z]{2}[A-Za-z0-9]{2}([A-Za-z0-9]{3})?"
+                 title="Must be a valid 8 or 11 character BIC/SWIFT code."
+                 autocapitalize="characters" autocomplete="off"
+                 placeholder="e.g., UBSWCHZH80A">
+          <div id="bicHint" class="validation-message"></div>
+        </div>
 
-        <label>Bank Name and Address</label>
-        <input type="text" name="bankName" id="bankAddressInput" autocomplete="organization">
+        <!-- Always visible, must contain a number -->
+        <label style="margin-top:1rem;">Bank Name and Address</label>
+        <input type="text" name="bankName" id="bankAddressInput"
+               autocomplete="organization"
+               pattern=".*\\d.*"
+               title="Please include a street/number (e.g., 'Bank, Street 10, City')."
+               placeholder="e.g., UBS AG, Bahnhofstrasse 45, 8001 Zürich">
         <div id="bankAddressValidation" class="validation-message"></div>
       </div>
 
@@ -134,47 +167,28 @@
     // -----------------------------
     // Project → expense & task map
     // -----------------------------
-    // EDIT HERE to add/update projects, their visible expense types, and default Task # per type.
     const PROJECTS = {
-      // Many lines / handled later by accounting: show generic types; do not auto-assign task
       "P0189": {
         label: "Christine LUTRINGER – AHCD 2025 – P0189",
         expenseTypes: ["Travel", "Accommodation", "Meals", "Supplies", "Honorarium", "Other"],
-        taskByType: {} // no defaults → leave Task # blank
+        taskByType: {}
       },
-      // Simple example with explicit task lines
       "P0024": {
         label: "Doc.CH / Health as a Form of Politics in North India – P0024",
         expenseTypes: ["Travel", "Accommodation", "Meals", "Supplies", "Other"],
-        taskByType: {
-          "Travel": "30",
-          "Accommodation": "31",
-          "Meals": "32",
-          "Supplies": "33",
-          "Other": "39"
-        }
+        taskByType: { "Travel":"30","Accommodation":"31","Meals":"32","Supplies":"33","Other":"39" }
       },
-      // Keep an example third one (update later if needed)
       "S2334": {
         label: "Vincent CHETAIL – NCCR / Migration Governance – S2334",
         expenseTypes: ["Travel", "Accommodation", "Meals", "Supplies", "Honorarium", "Other"],
-        taskByType: {
-          "Travel": "10",
-          "Accommodation": "11",
-          "Meals": "12",
-          "Supplies": "13",
-          "Honorarium": "14",
-          "Other": "19"
-        }
+        taskByType: { "Travel":"10","Accommodation":"11","Meals":"12","Supplies":"13","Honorarium":"14","Other":"19" }
       }
     };
 
     function detectProjectCode(inputValue) {
-      // Try to extract a project code like P0189 / P0024 / S2334 from the entered string
       const m = (inputValue || "").toUpperCase().match(/\b([PS]\d{4})\b/);
       return m ? m[1] : null;
     }
-
     function getProjectProfile() {
       const raw = document.getElementById('projectInput').value.trim();
       const code = detectProjectCode(raw);
@@ -189,6 +203,8 @@
         if (saved.email) document.querySelector('input[name="email"]').value = saved.email;
         if (saved.address) document.querySelector('textarea[name="address"]').value = saved.address;
       } catch {}
+      // init bank block
+      initBankBlock();
     });
 
     function saveDefaultsIfWanted() {
@@ -220,7 +236,7 @@
       }
     }
 
-    // Whenever the project changes, update the expense type options and re-assign task # defaults
+    // Project change → update expense options + task defaults
     document.getElementById('projectInput').addEventListener('input', refreshExpenseTypeOptionsForAllReceipts);
     document.getElementById('projectInput').addEventListener('change', refreshExpenseTypeOptionsForAllReceipts);
 
@@ -232,31 +248,21 @@
         const select = entry.querySelector(`select[name="type${idx}"]`);
         if (!select) return;
         const current = select.value;
-
-        // Rebuild options
         const list = (profile && profile.expenseTypes?.length) ? profile.expenseTypes
                     : ["Travel", "Accommodation", "Meals", "Supplies", "Honorarium", "Other"];
         select.innerHTML = `<option value="">Select a type</option>` + list.map(t => `<option value="${t}">${t}</option>`).join('');
-
-        // Restore previous selection only if still valid
         if (current && list.includes(current)) select.value = current;
-
-        // If a valid type is selected, assign task # default (or clear)
         assignTaskNumberForEntry(idx);
       });
     }
 
     function addReceipt() {
-      if (receiptIndex >= maxReceipts) {
-        alert(`Maximum of ${maxReceipts} receipts allowed.`);
-        return;
-      }
+      if (receiptIndex >= maxReceipts) { alert(`Maximum of ${maxReceipts} receipts allowed.`); return; }
       const r_index = receiptIndex;
       const container = document.createElement('div');
       container.classList.add('receipt-entry');
       container.id = `receipt-entry-${r_index}`;
 
-      // Build the expense type options for current project
       const profile = getProjectProfile();
       const expenseList = (profile && profile.expenseTypes?.length)
         ? profile.expenseTypes
@@ -297,13 +303,10 @@
       `;
       document.getElementById('receipts').appendChild(container);
       receiptIndex++;
-
-      // Assign initial Task # default if applicable
       assignTaskNumberForEntry(r_index);
       toggleTravelSection();
     }
 
-    // Assigns/clears Task # based on selected project and expense type for a specific entry
     function assignTaskNumberForEntry(index) {
       const profile = getProjectProfile();
       const entry = document.getElementById(`receipt-entry-${index}`);
@@ -311,11 +314,8 @@
       const typeSel = entry.querySelector(`select[name="type${index}"]`);
       const taskInput = entry.querySelector(`input[name="taskNumber${index}"]`);
       if (!typeSel || !taskInput) return;
-
       const selectedType = typeSel.value || "";
       const defaultTask = (profile && profile.taskByType && profile.taskByType[selectedType]) ? profile.taskByType[selectedType] : "";
-
-      // If a mapping exists, fill it; if not, clear (but always user-editable)
       taskInput.value = defaultTask;
     }
 
@@ -358,7 +358,6 @@
       const ackBox = document.getElementById(`ack-box-${index}`);
       const ackCheckbox = document.getElementById(`ack-checkbox-${index}`);
       const expenseType = document.querySelector(`select[name="type${index}"]`).value;
-      
       if (expenseType !== 'Meals') {
         messageDiv.className = 'pp-message';
         messageDiv.innerText = '';
@@ -366,19 +365,15 @@
         ackCheckbox.required = false;
         return;
       }
-
       const amountInput = document.querySelector(`input[name="amount${index}"]`);
       const participantsInput = document.querySelector(`input[name="participants_count${index}"]`);
-      
       if (!amountInput || !participantsInput) { 
         ackBox.classList.add('hidden'); 
         ackCheckbox.required = false; 
         return; 
       }
-      
       const amount = parseFloat(amountInput.value);
       const participants = parseInt(participantsInput.value, 10);
-
       if (amount > 0 && participants > 0) {
         const average = amount / participants;
         messageDiv.innerText = `Per-person average: ${average.toFixed(2)}`;
@@ -405,11 +400,9 @@
         const sel = entry.querySelector(`select[name="type${idx}"]`);
         return sel && sel.value === 'Travel';
       });
-
       const travel = document.getElementById('travelSection');
       const radios = document.querySelectorAll('input[name="planeReason"]');
       const exceptionBox = document.getElementById('travelExceptionBox');
-
       if (anyTravel) {
         travel.classList.remove('hidden');
         const selected = Array.from(radios).find(r => r.checked)?.value || 'Train';
@@ -443,10 +436,127 @@
       }
       return btoa(binary);
     }
-    
-    function handleIBANInput() {}
-    function handleAccountInput() {}
-    function validateBankAddress() {}
+
+// ===== Bank UI (unfurl logic + validation + gray-out the other field) =====
+
+let ibanEl, ibanMsg, acctEl, acctMsg, bicGroupEl, bicEl, bicHintEl, bankAddrEl, bankAddrMsgEl;
+
+function initBankBlock() {
+  ibanEl        = document.getElementById('ibanInput');
+  ibanMsg       = document.getElementById('ibanValidation');
+  acctEl        = document.getElementById('accountInput');
+  acctMsg       = document.getElementById('acctValidation');
+  bicGroupEl    = document.getElementById('bicGroup');
+  bicEl         = document.getElementById('bankCodeInput');
+  bicHintEl     = document.getElementById('bicHint');
+  bankAddrEl    = document.getElementById('bankAddressInput');
+  bankAddrMsgEl = document.getElementById('bankAddressValidation');
+
+    // remember original placeholders so we can restore them
+  ibanEl.dataset.originalPlaceholder = ibanEl.placeholder || '';
+  acctEl.dataset.originalPlaceholder = acctEl.placeholder || '';
+
+  if (ibanEl) {
+    ibanEl.addEventListener('input', () => {
+      ibanEl.value = (ibanEl.value || '').toUpperCase().replace(/\s+/g,'');
+      updateBankUI('iban');
+    });
+    // If the user focuses IBAN with nothing in either field, prefer IBAN path
+    ibanEl.addEventListener('focus', () => updateBankUI('iban'));
+  }
+  if (acctEl) {
+    acctEl.addEventListener('input', () => {
+      // keep light normalization only; account numbers can be alphanum with spaces/dashes
+      updateBankUI('acct');
+    });
+    acctEl.addEventListener('focus', () => updateBankUI('acct'));
+  }
+  if (bicEl) {
+    bicEl.addEventListener('input', () => {
+      bicEl.value = (bicEl.value || '').toUpperCase().replace(/\s+/g,'');
+    });
+  }
+  updateBankUI(); // initial
+}
+
+function updateBankUI(prefer = null) {
+  const iban = (ibanEl?.value || '').toUpperCase();
+  const acct = (acctEl?.value || '').trim();
+
+  const usingIBAN = iban.length > 0;
+  const usingAcct = acct.length > 0;
+
+  // Choose which path is "active"
+  // - If one has content, that one is active.
+  // - If both empty, use "prefer" hint (from focus), else none.
+  let active = null;
+  if (usingIBAN && !usingAcct) active = 'iban';
+  else if (!usingIBAN && usingAcct) active = 'acct';
+  else if (usingIBAN && usingAcct) {
+    // If both somehow have content, prefer the last interacted field
+    active = prefer || 'iban';
+  } else {
+    active = prefer; // could be null if neither focused/typed yet
+  }
+
+  // helper to apply grey + placeholder logic
+  function setGreyState(el, shouldGrey) {
+    if (!el) return;
+    el.disabled = shouldGrey;
+    el.classList.toggle('muted', shouldGrey);
+
+    // hide example when greyed; restore when active
+    const orig = el.dataset.originalPlaceholder || '';
+    if (shouldGrey) {
+      el.placeholder = '';
+    } else {
+      el.placeholder = orig;
+    }
+  }
+
+  // Grey-out the non-active input when the other has content
+  if (active === 'iban') {
+    setGreyState(acctEl, usingIBAN);  // account greys if IBAN has content
+    setGreyState(ibanEl, false);
+  } else if (active === 'acct') {
+    setGreyState(ibanEl, usingAcct);  // IBAN greys if Account has content
+    setGreyState(acctEl, false);
+  } else {
+    // neither chosen yet
+    setGreyState(ibanEl, false);
+    setGreyState(acctEl, false);
+  }
+
+
+  // Validation messages
+  if (usingIBAN) {
+    try {
+      ibanMsg.textContent = IBAN.isValid(iban) ? 'IBAN looks valid.' : 'IBAN format may be invalid.';
+    } catch { ibanMsg.textContent = ''; }
+  } else {
+    ibanMsg.textContent = '';
+  }
+
+  if (usingAcct) {
+    const ok = /^[0-9A-Za-z \-]{4,30}$/.test(acct);
+    acctMsg.textContent = ok ? '' : 'Use 4–30 digits/letters (spaces and - allowed).';
+  } else {
+    acctMsg.textContent = '';
+  }
+
+  // Unfurl BIC if: non-CH IBAN OR Account # in use
+  const isSwissIBAN = usingIBAN && iban.startsWith('CH');
+  const needBIC = (usingIBAN && !isSwissIBAN) || usingAcct;
+
+  bicGroupEl.classList.toggle('hidden', !needBIC);
+  if (bicEl) bicEl.required = !!needBIC;
+  bicHintEl.textContent = needBIC
+    ? 'It looks like your bank account is outside Switzerland and requires a BIC/SWIFT code.'
+    : '';
+
+  // Bank address hint is enforced by pattern; no extra message needed here.
+  bankAddrMsgEl.textContent = '';
+}
 
     // ---------------------
     // OCR: Scan for totals
@@ -455,26 +565,18 @@
       const msg = document.getElementById(`scan-msg-${index}`);
       msg.textContent = '';
 
-      // get file
       const entry = document.getElementById(`receipt-entry-${index}`);
       const fileInput = entry?.querySelector(`input[name="receiptFile${index}"]`);
-      if (!fileInput || fileInput.files.length === 0) {
-        msg.textContent = 'Please choose a receipt file first.';
-        return;
-      }
+      if (!fileInput || fileInput.files.length === 0) { msg.textContent = 'Please choose a receipt file first.'; return; }
       const file = fileInput.files[0];
 
-      // Only scan images for now
       if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-        msg.textContent = 'For scanning, please upload a JPG/PNG (PDF scan coming soon).';
-        return;
+        msg.textContent = 'For scanning, please upload a JPG/PNG (PDF scan coming soon).'; return;
       }
       if (!file.type.startsWith('image/')) {
-        msg.textContent = 'Unsupported file type. Please upload a JPG or PNG.';
-        return;
+        msg.textContent = 'Unsupported file type. Please upload a JPG or PNG.'; return;
       }
 
-      // UI
       const scanButton = entry.querySelector('button[onclick^="scanReceipt("]');
       const prevLabel = scanButton.textContent;
       scanButton.disabled = true;
@@ -482,7 +584,6 @@
       msg.textContent = '';
 
       try {
-        // Read image as dataURL
         const dataUrl = await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result);
@@ -490,7 +591,6 @@
           reader.readAsDataURL(file);
         });
 
-        // Run OCR
         const { createWorker } = Tesseract;
         const worker = await createWorker('eng', 1, {
           logger: m => {
@@ -504,15 +604,9 @@
         await worker.terminate();
 
         const text = (result && result.data && result.data.text) ? result.data.text : '';
-        if (!text.trim()) {
-          msg.textContent = 'No text detected. Try a clearer photo.';
-          return;
-        }
+        if (!text.trim()) { msg.textContent = 'No text detected. Try a clearer photo.'; return; }
 
-        // Parse amount + currency
         const { currencyGuess, amountGuess, debugNote } = extractTotalFromText(text);
-
-        // Fill inputs
         const currencyInput = entry.querySelector(`input[name="currency${index}"]`);
         const amountInput = entry.querySelector(`input[name="amount${index}"]`);
 
@@ -525,7 +619,6 @@
           msg.textContent = `Suggested total: ${currencyInput.value || ''} ${amountGuess.toFixed(2)}${debugNote ? ' • ' + debugNote : ''}`;
           calculateMealsAverage(index);
         }
-
       } catch (err) {
         console.error('OCR error:', err);
         msg.textContent = 'Scan failed. Try a clearer image.';
@@ -536,30 +629,22 @@
     }
 
     function extractTotalFromText(text) {
-      const t = text.replace(/\u00A0/g, ' ').replace(/[,，]/g, '.'); // normalize spaces/commas
+      const t = text.replace(/\u00A0/g, ' ').replace(/[,，]/g, '.');
       const currencyTokens = ['CHF', 'SFR', 'FR', 'EUR', '€', 'USD', '\\$','GBP','£'];
-
-      // “total” hints
       const totalHints = /(grand\s*total|amount\s*due|total\s*to\s*pay|total|balance\s*due)/i;
       const lines = t.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
 
-      let bestCurrency = null;
-      let bestAmount = null;
-
-      // helper: first money-like number on a line
+      let bestCurrency = null, bestAmount = null;
       const moneyOnLine = (line) => {
         const moneyRegex = new RegExp(`(?:(${currencyTokens.join('|')})\\s*)?(\\d{1,3}(?:\\.\\d{3})*(?:\\.\\d{2})|\\d+\\.\\d{2})(?:\\s*(${currencyTokens.join('|')}))?`, 'i');
         const m = line.match(moneyRegex);
         if (!m) return null;
-        const leftCur = m[1];
-        const numStr = m[2];
-        const rightCur = m[3];
+        const leftCur = m[1], numStr = m[2], rightCur = m[3];
         const cur = (leftCur || rightCur || '').toUpperCase().replace(/[^A-Z€$£]/g,'');
         const amt = parseFloat(numStr);
         return { cur, amt };
       };
 
-      // Pass A: look for lines mentioning total
       for (const line of lines) {
         if (totalHints.test(line)) {
           const found = moneyOnLine(line);
@@ -570,8 +655,6 @@
           }
         }
       }
-
-      // Pass B: take largest amount
       let maxFound = { amt: -1, cur: null };
       for (const line of lines) {
         const found = moneyOnLine(line);
@@ -582,7 +665,6 @@
         bestAmount = maxFound.amt;
         return { currencyGuess: bestCurrency, amountGuess: bestAmount, debugNote: 'largest amount found' };
       }
-
       return { currencyGuess: guessCurrencyFromText(t) || null, amountGuess: null, debugNote: null };
     }
 
@@ -595,7 +677,6 @@
       if (c.includes('GBP') || c.includes('£')) return 'GBP';
       return null;
     }
-
     function guessCurrencyFromText(text) {
       const u = text.toUpperCase();
       if (u.includes('CHF') || u.includes('SFR')) return 'CHF';
@@ -604,8 +685,8 @@
       if (u.includes('GBP') || u.includes('£')) return 'GBP';
       return null;
     }
-    // ---------------------
 
+    // Submit
     document.getElementById('reimbursementForm').addEventListener('submit', async function (e) {
       e.preventDefault();
       const form = e.target;
@@ -616,6 +697,47 @@
       submitButton.disabled = true;
       progressContainer.classList.remove('hidden');
       updateProgress(0, 'Starting...');
+
+      // ---- Banking guardrails (frontend hard stops) for EXTERNAL only ----
+      const isExternal = (document.getElementById('employeeStatus').value === 'no');
+      if (isExternal) {
+        const iban = (document.getElementById('ibanInput').value || '').toUpperCase().replace(/\s+/g,'');
+        const acct = (document.getElementById('accountInput').value || '').trim();
+        const bic  = (document.getElementById('bankCodeInput')?.value || '').toUpperCase().replace(/\s+/g,'');
+        const bankAddr = (document.getElementById('bankAddressInput').value || '').trim();
+
+        const usingIBAN = iban.length > 0;
+        const usingAcct = acct.length > 0;
+        const isSwissIBAN = usingIBAN && iban.startsWith('CH');
+        const needBIC = (usingIBAN && !isSwissIBAN) || usingAcct;
+
+        // Must provide either IBAN or Account #
+        if (!usingIBAN && !usingAcct) {
+          alert('Please provide either an IBAN or a Bank Account Number.');
+          submitButton.disabled = false; progressContainer.classList.add('hidden'); return;
+        }
+        // If IBAN provided, format must be valid
+        if (usingIBAN && !IBAN.isValid(iban)) {
+          alert('The IBAN format looks invalid.');
+          submitButton.disabled = false; progressContainer.classList.add('hidden'); return;
+        }
+        // If Account # provided, basic format
+        if (usingAcct && !/^[0-9A-Za-z \-]{4,30}$/.test(acct)) {
+          alert('Bank Account Number must be 4–30 characters (digits/letters, spaces and - allowed).');
+          submitButton.disabled = false; progressContainer.classList.add('hidden'); return;
+        }
+        // If non-CH IBAN OR Account #, BIC is required and must match regex
+        if (needBIC && !/^[A-Za-z]{4}[A-Za-z]{2}[A-Za-z0-9]{2}([A-Za-z0-9]{3})?$/.test(bic)) {
+          alert('BIC/SWIFT is required (8 or 11 characters) for non-Swiss IBANs or when using a Bank Account Number.');
+          submitButton.disabled = false; progressContainer.classList.add('hidden'); return;
+        }
+        // Bank name/address must contain a number (street number)
+        if (!/.*\d.*/.test(bankAddr)) {
+          alert('Please include a street number in the Bank name/address.');
+          submitButton.disabled = false; progressContainer.classList.add('hidden'); return;
+        }
+      }
+      // -------------------------------------------------------------------
 
       try {
         updateProgress(10, 'Processing & generating participant page...');
@@ -655,7 +777,7 @@
         }
 
         updateProgress(40, 'Merging receipts...');
-        const A4 = { w: 595.28, h: 841.89 }; // pt units (72 dpi)
+        const A4 = { w: 595.28, h: 841.89 };
         for (const entry of receiptEntries) {
           const fileInput = entry.querySelector('input[type="file"]');
           if (!fileInput || fileInput.files.length === 0) continue;
@@ -665,13 +787,11 @@
           const isPdf = file.type === 'application/pdf' || nameLower.endsWith('.pdf');
 
           if (isPdf) {
-            // Merge PDF pages directly
             const bytes = await file.arrayBuffer();
             const srcPdf = await PDFDocument.load(bytes);
             const pages = await mergedPdf.copyPages(srcPdf, srcPdf.getPageIndices());
             pages.forEach(p => mergedPdf.addPage(p));
           } else if (file.type.startsWith('image/')) {
-            // Embed image as a full page (scaled to A4 while preserving aspect ratio)
             const imgBytes = await file.arrayBuffer();
             let img;
             if (file.type === 'image/jpeg' || nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg')) {
@@ -701,12 +821,9 @@
         const mergedPdfBytes = await mergedPdf.save();
         const mergedPdfBase64 = uint8ArrayToBase64(mergedPdfBytes);
 
-        // Build payload
         const fd = new FormData();
         const formData = new FormData(form);
-        for (const [k, v] of formData.entries()) {
-          if (typeof v !== 'object') fd.append(k, v); // skip File objects (already merged)
-        }
+        for (const [k, v] of formData.entries()) { if (typeof v !== 'object') fd.append(k, v); }
         fd.append("reference", ref);
         fd.append("receiptCount", receiptIndex);
         fd.append("fileBase64", mergedPdfBase64);
@@ -725,9 +842,7 @@
         updateProgress(100, '');
         progressContainer.classList.add('hidden');
 
-        // SAVE remembered fields (if user opted in)
         saveDefaultsIfWanted();
-
         referenceBox.innerHTML = `✅ Your request has been sent successfully!<br><br><strong>PLEASE SAVE YOUR REFERENCE NUMBER:</strong><br><span style="font-size: 1.2em; background-color: #d4edda; padding: 5px 10px; border-radius: 4px;">${ref}</span><br><br>You will receive a confirmation email once it has been processed.`;
         
         setTimeout(() => {
@@ -736,6 +851,7 @@
           receiptIndex = 0;
           handleFormDisplay();
           toggleTravelSection();
+          updateBankUI();
         }, 500);
 
       } catch (error) {
