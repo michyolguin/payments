@@ -291,11 +291,14 @@
         <div class="section-body">
         <div id="receipts"></div>
 
-      <!-- Drag drop to add receipts to be added here-->
-        <!-- Add receipt button -->
-        <div style="margin-top:12px;">
-          <button type="button" id="addReceiptBtn" class="btn btn-red-plus">+ Add receipt</button>
+      <!-- Drag drop to add receipts -->
+      <div id="dropzone" class="dropzone" onclick="document.getElementById('dzFile').click();">
+        <div class="dz-inner">
+          <div class="dz-plus">+</div>
+          <div class="dz-text">Drop receipt files here<br><span class="dz-sub">or click to add PDF/JPG/PNG</span></div>
         </div>
+        <input id="dzFile" type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" multiple>
+      </div>
 
           <!-- Travel declaration (auto-shown if any receipt = Travel) -->
           <div id="travelSection" class="hidden" style="margin-top:20px;">
